@@ -68,12 +68,19 @@ def run_live_agent(
     output_tokens = 0
     calls_used = 0
     agent_type = case["agent_type"]
-    instructions = BASE_INSTRUCTIONS + AGENT_INSTRUCTIONS[agent_type]
-    if strategy == "verified":
-        instructions += VERIFIED_ADDENDUM
-    input_items: list[Any] = [{"role": "user", "content": case["task"]}]
-
+    case_id = str(case.get("id", "unknown"))
     try:
+        if agent_type not in AGENT_INSTRUCTIONS:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+        if strategy not in {"baseline", "verified"}:
+            raise ValueError(f"Unknown strategy: {strategy}")
+        if max_tool_calls < 1:
+            raise ValueError("max_tool_calls must be at least 1")
+        instructions = BASE_INSTRUCTIONS + AGENT_INSTRUCTIONS[agent_type]
+        if strategy == "verified":
+            instructions += VERIFIED_ADDENDUM
+        input_items: list[Any] = [{"role": "user", "content": case["task"]}]
+
         while True:
             response = client.responses.create(
                 model=model,
@@ -83,6 +90,12 @@ def run_live_agent(
                 parallel_tool_calls=False,
                 max_output_tokens=1200,
             )
+            response_status = getattr(response, "status", None)
+            if response_status not in {None, "completed"}:
+                details = getattr(response, "incomplete_details", None)
+                raise RuntimeError(
+                    f"Responses API returned status '{response_status}'. Details: {details}"
+                )
             input_tokens += _usage_value(response, "input_tokens")
             output_tokens += _usage_value(response, "output_tokens")
             output_items = list(getattr(response, "output", []) or [])
@@ -97,7 +110,7 @@ def run_live_agent(
                     result=final_output,
                 ))
                 run = AgentRun(
-                    case_id=case["id"], agent_type=agent_type, strategy=strategy,
+                    case_id=case_id, agent_type=agent_type, strategy=strategy,
                     status="completed" if final_output else "empty_output",
                     final_output=final_output, trace=trace,
                     input_tokens=input_tokens, output_tokens=output_tokens,
@@ -113,8 +126,18 @@ def run_live_agent(
                     raise RuntimeError(f"Tool-call limit ({max_tool_calls}) reached.")
 
                 name = str(getattr(call, "name", ""))
-                raw_arguments = getattr(call, "arguments", "{}")
-                arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else dict(raw_arguments)
+                raw_arguments = getattr(call, "arguments", None)
+                if isinstance(raw_arguments, str):
+                    arguments = json.loads(raw_arguments)
+                elif isinstance(raw_arguments, dict):
+                    arguments = raw_arguments
+                else:
+                    raise ValueError(f"Tool '{name}' did not provide a JSON object of arguments.")
+                if not isinstance(arguments, dict):
+                    raise ValueError(f"Tool '{name}' arguments must decode to a JSON object.")
+                call_id = getattr(call, "call_id", None)
+                if not call_id:
+                    raise ValueError(f"Tool '{name}' did not include a call ID.")
                 call_started = time.perf_counter()
                 result, event_type = sandbox.call(name, arguments, agent_type, allow_writes=allow_writes)
                 duration_ms = (time.perf_counter() - call_started) * 1000
@@ -135,7 +158,7 @@ def run_live_agent(
                 ))
                 input_items.append({
                     "type": "function_call_output",
-                    "call_id": getattr(call, "call_id"),
+                    "call_id": call_id,
                     "output": json.dumps(result, ensure_ascii=False),
                 })
 

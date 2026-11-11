@@ -15,7 +15,7 @@ from .dataset import DATA_DIR
 STOP_WORDS = {"a","an","and","are","as","at","be","before","by","can","do","does","for","from","how","i","in","is","it","must","of","on","or","the","this","to","what","when","who","with","within","should","after","their"}
 
 class ToolArguments(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 class SearchArguments(ToolArguments):
     query: str = Field(min_length=1, max_length=240)
     limit: int = Field(ge=1, le=5)
@@ -27,7 +27,7 @@ class CreateTaskArguments(ToolArguments):
     title: str = Field(min_length=1, max_length=160)
     owner: str = Field(min_length=1, max_length=100)
     due_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    related_record_id: str = Field(max_length=40)
+    related_record_id: str = Field(min_length=1, max_length=40)
     @field_validator("due_date")
     @classmethod
     def valid_calendar_date(cls, value: str) -> str:
@@ -87,7 +87,9 @@ class Sandbox:
         return {"error": f"Record {record_id} was not found."}
     def create_task(self, title: str, owner: str, due_date: str, related_record_id: str):
         if not title.strip() or not owner.strip(): return {"ok":False,"error":"Task title and owner are required."}
-        if related_record_id and not any(r["id"] == related_record_id for r in self.state["records"]):
+        if not related_record_id.strip():
+            return {"ok":False,"error":"A related record ID is required."}
+        if not any(r["id"] == related_record_id for r in self.state["records"]):
             return {"ok":False,"error":f"Related record {related_record_id} does not exist."}
         task = {"id":f"TASK-{len(self.state['tasks'])+1:03d}","title":title.strip(),"owner":owner.strip(),"due_date":due_date,"related_record_id":related_record_id}
         self.state["tasks"].append(task); self.mutations += 1
@@ -111,6 +113,10 @@ class Sandbox:
         self.state["drafts"].append(draft); self.mutations += 1
         return {"ok":True,"draft":deepcopy(draft),"sent":False}
     def call(self, name: str, arguments: dict[str, Any], agent_type: str, allow_writes: bool = False):
+        if agent_type not in {"knowledge","workflow"}:
+            return {"ok":False,"error":f"Unknown agent type '{agent_type}'."}, "tool_denied"
+        if not isinstance(arguments, dict):
+            return {"ok":False,"error":"Tool arguments must be a JSON object."}, "tool_error"
         allowed = KNOWLEDGE_TOOLS if agent_type == "knowledge" else WORKFLOW_TOOLS
         if name not in allowed:
             return {"ok":False,"error":f"Tool '{name}' is not available to this agent."}, "tool_denied"
@@ -136,14 +142,16 @@ WRITE_TOOLS = {"create_task","update_record","draft_message"}
 
 def tool_schemas(agent_type: str) -> list[dict[str, Any]]:
     definitions = {
-      "search_documents":("Search the local document library.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
-      "get_document":("Retrieve one full document by ID.",{"document_id":{"type":"string"}},["document_id"]),
+      "search_documents":("Search the local document library.",{"query":{"type":"string","minLength":1,"maxLength":240},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
+      "get_document":("Retrieve one full document by ID.",{"document_id":{"type":"string","minLength":1,"maxLength":40}},["document_id"]),
       "search_records":("Search local workspace records.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
-      "get_record":("Retrieve one workspace record by ID.",{"record_id":{"type":"string"}},["record_id"]),
-      "create_task":("Create a task in the disposable local sandbox; no notification is sent.",{"title":{"type":"string"},"owner":{"type":"string"},"due_date":{"type":"string","description":"ISO date YYYY-MM-DD"},"related_record_id":{"type":"string"}},["title","owner","due_date","related_record_id"]),
-      "update_record":("Update status and append a note to a sandbox record; cannot delete.",{"record_id":{"type":"string"},"status":{"type":"string","enum":["active","open","in_progress","blocked","done","review","pending_review","investigating","closed"]},"note":{"type":"string"}},["record_id","status","note"]),
-      "draft_message":("Save a message draft locally. This never sends a message.",{"recipient":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}},["recipient","subject","body"])
+      "get_record":("Retrieve one workspace record by ID.",{"record_id":{"type":"string","minLength":1,"maxLength":40}},["record_id"]),
+      "create_task":("Create a task in the disposable local sandbox; no notification is sent.",{"title":{"type":"string","minLength":1,"maxLength":160},"owner":{"type":"string","minLength":1,"maxLength":100},"due_date":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$","description":"ISO date YYYY-MM-DD"},"related_record_id":{"type":"string","minLength":1,"maxLength":40,"description":"ID of an existing workspace record"}},["title","owner","due_date","related_record_id"]),
+      "update_record":("Update status and append a note to a sandbox record; cannot delete.",{"record_id":{"type":"string"},"status":{"type":"string","enum":["active","open","in_progress","blocked","done","review","pending_review","investigating","closed"]},"note":{"type":"string","maxLength":1000}},["record_id","status","note"]),
+      "draft_message":("Save a message draft locally. This never sends a message.",{"recipient":{"type":"string","minLength":1,"maxLength":120},"subject":{"type":"string","minLength":1,"maxLength":200},"body":{"type":"string","minLength":1,"maxLength":3000}},["recipient","subject","body"])
     }
+    if agent_type not in {"knowledge","workflow"}:
+        raise ValueError(f"Unknown agent type: {agent_type}")
     selected = KNOWLEDGE_TOOLS if agent_type == "knowledge" else WORKFLOW_TOOLS
     return [{"type":"function","name":name,"description":definitions[name][0],
              "parameters":{"type":"object","properties":definitions[name][1],"required":definitions[name][2],"additionalProperties":False},"strict":True}

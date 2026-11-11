@@ -32,11 +32,14 @@ def _knowledge_metrics(case: dict[str,Any], run: AgentRun) -> dict[str,Any]:
     phrases = ("not specified","not stated","not provided","cannot determine","cannot verify")
     abstained = any(p in output for p in phrases)
     abstention_ok = abstained == must_abstain
-    success = run.status == "completed" and term_score == 1 and retrieval == 1 and citations == 1 and abstention_ok
+    tools = _tool_scores(["search_documents","get_document"],_tool_names(run))
+    success = (run.status == "completed" and term_score == 1 and retrieval == 1
+               and citations == 1 and abstention_ok
+               and tools["tool_precision"] == 1 and tools["tool_recall"] == 1)
     return {"task_success":int(success),"required_term_coverage":round(term_score,4),
             "document_retrieval_recall":round(retrieval,4),"citation_coverage":round(citations,4),
             "abstention_correct":int(abstention_ok),"abstained":int(abstained),
-            **_tool_scores(["search_documents","get_document"],_tool_names(run))}
+            **tools}
 
 def _workflow_metrics(case: dict[str,Any], run: AgentRun, sandbox: Sandbox) -> dict[str,Any]:
     exp = case["expected"]; names = _tool_names(run)
