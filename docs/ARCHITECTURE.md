@@ -39,3 +39,8 @@
 
 ## Deliberate limitations
 This version has no authentication, multi-user server, production integrations, embeddings, distributed queue or durable business writes. Keyword retrieval is a simple baseline, not a production search system.
+
+
+## Experiment comparability
+
+Each run stores the model ID, benchmark version and write-approval setting alongside its metrics. The dashboard only pairs baseline and verified results when these settings match. This is important because workflow tasks with write tools enabled are not directly comparable to runs where writes are disabled.

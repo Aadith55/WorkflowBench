@@ -48,3 +48,8 @@ Keyword checks may penalise correct paraphrases. Citation presence does not prov
 10. Abstention error.
 
 Do not claim statistically significant or general performance gains from the starter benchmark.
+
+
+## Run configuration and comparison controls
+
+Every live run stores the model identifier, benchmark version and write-approval setting. The dashboard groups results by that configuration and performs paired baseline/verified analysis only within an identical configuration. Do not interpret comparisons across different models, datasets or permissions as a prompt-strategy experiment.

@@ -163,3 +163,8 @@ These are methodological references. WorkflowBench's 24 scenarios are original s
 - Token cost is unknown unless verified provider prices are configured.
 
 The next research iteration should add more human-reviewed cases, measure grader agreement, repeat runs for stochasticity, and document failure categories before making performance claims.
+
+
+### Reproducible experiment settings
+
+Each live run records its model ID, benchmark version and write-approval setting. The dashboard groups task-success rates by these settings and only pairs baseline/verified runs with matching configurations. This prevents comparisons between runs that used different models, dataset versions or workflow write permissions.

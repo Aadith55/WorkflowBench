@@ -32,3 +32,10 @@ The app works in scripted mode without credentials. For a live run, set `OPENAI_
 ## Learning honesty
 
 A scripted walkthrough is not a model result. Do not claim improvements until you run matched experiments and inspect the outcomes. This is a local research prototype, not a production agent platform.
+
+
+## Understanding the experiment history
+
+A saved live run includes its model ID, benchmark version and whether workflow writes were enabled. This is not just bookkeeping. When comparing baseline with verified instructions, the model and permissions must be the same. The dashboard groups results by those settings and only runs a paired comparison when the configurations match.
+
+The scripted walkthrough is a fixed example (K01 or W01). It teaches the tool flow, but it does not execute the selected benchmark case and it does not call a model.

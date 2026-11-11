@@ -73,3 +73,8 @@ Use the same held-out case IDs, model and tool permissions under baseline and ve
 - What would you change before using this with real customer data?
 
 Answer in your own words and point to the exact module that implements each feature.
+
+
+## Why store model, dataset and write settings?
+
+A strategy comparison is only meaningful when the other conditions are held constant. WorkflowBench records the model ID, benchmark version and write-approval setting for each run. The dashboard only pairs baseline and verified runs with matching settings, avoiding a misleading comparison between runs that had different tool permissions or used different model versions.
