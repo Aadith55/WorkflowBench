@@ -48,3 +48,40 @@ def test_pydantic_rejects_invalid_tool_arguments_before_function_runs():
     }, "workflow", allow_writes=True)
     assert event == "tool_error" and result["ok"] is False
     assert sandbox.state["tasks"] == []
+
+
+def test_unknown_agent_type_fails_closed():
+    sandbox = Sandbox()
+    result, event = sandbox.call("search_records", {"query": "Atlas", "limit": 5}, "unknown-agent")
+    assert event == "tool_denied"
+    assert result["ok"] is False
+
+
+def test_strict_validation_rejects_coercible_types_and_empty_record_links():
+    sandbox = Sandbox()
+    result, event = sandbox.call(
+        "search_documents", {"query": "access request", "limit": "5"}, "knowledge"
+    )
+    assert event == "tool_error"
+    assert result["ok"] is False
+
+    result, event = sandbox.call(
+        "create_task",
+        {
+            "title": "Task without a record",
+            "owner": "Maya Chen",
+            "due_date": "2026-11-18",
+            "related_record_id": "",
+        },
+        "workflow",
+        allow_writes=True,
+    )
+    assert event == "tool_error"
+    assert result["ok"] is False
+    assert sandbox.state["tasks"] == []
+
+
+def test_tool_schemas_reject_unknown_agent_type():
+    import pytest
+    with pytest.raises(ValueError, match="Unknown agent type"):
+        tool_schemas("admin")

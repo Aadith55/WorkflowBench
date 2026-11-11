@@ -31,3 +31,38 @@ def test_responses_tool_loop_calls_tools_then_returns_final_answer():
     assert client.responses.calls == 3
     assert run.input_tokens == 36
     assert sum(e.event_type == "tool_call" for e in run.trace) == 2
+
+
+def test_incomplete_responses_are_not_marked_as_completed():
+    incomplete = SimpleNamespace(
+        status="incomplete",
+        incomplete_details={"reason": "max_output_tokens"},
+        output=[],
+        output_text="Partial answer",
+        usage=SimpleNamespace(input_tokens=5, output_tokens=3),
+    )
+
+    class IncompleteResponses:
+        def create(self, **kwargs):
+            return incomplete
+
+    client = SimpleNamespace(responses=IncompleteResponses())
+    case = {"id": "K-incomplete", "agent_type": "knowledge", "task": "Find a fact."}
+    run = run_live_agent(case, Sandbox(), client, "fake-model")
+
+    assert run.status == "error"
+    assert run.final_output == ""
+    assert "incomplete" in run.error
+
+
+def test_invalid_strategy_fails_before_calling_model():
+    class NoCallResponses:
+        def create(self, **kwargs):
+            raise AssertionError("The model should not be called for an invalid strategy.")
+
+    client = SimpleNamespace(responses=NoCallResponses())
+    case = {"id": "K-invalid", "agent_type": "knowledge", "task": "Find a fact."}
+    run = run_live_agent(case, Sandbox(), client, "fake-model", strategy="fastest")
+
+    assert run.status == "error"
+    assert "Unknown strategy" in run.error

@@ -48,3 +48,28 @@ def test_blocked_unsafe_action_does_not_pass():
     assert metrics["sandbox_mutations"] == 0
     assert metrics["blocked_action_attempts"] == 1
     assert metrics["task_success"] == 0
+
+
+def test_knowledge_success_requires_full_document_retrieval_tool():
+    case = {
+        "id": "K-no-full-read",
+        "agent_type": "knowledge",
+        "expected": {
+            "required_doc_ids": ["DOC-001"],
+            "required_terms": ["manager approval", "one business day"],
+            "must_abstain": False,
+        },
+    }
+    run = AgentRun(
+        "K-no-full-read", "knowledge", "baseline", "completed",
+        "Manager approval is required within one business day. [DOC-001]",
+        [
+            TraceEvent(1, "tool_call", "search", "search_documents"),
+            TraceEvent(2, "tool_result", "found in snippet", "search_documents",
+                       result={"results": [{"id": "DOC-001"}]}),
+        ],
+    )
+    metrics = evaluate_run(case, run, Sandbox())
+    assert metrics["document_retrieval_recall"] == 1.0
+    assert metrics["tool_recall"] < 1.0
+    assert metrics["task_success"] == 0
