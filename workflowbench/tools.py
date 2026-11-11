@@ -142,13 +142,13 @@ WRITE_TOOLS = {"create_task","update_record","draft_message"}
 
 def tool_schemas(agent_type: str) -> list[dict[str, Any]]:
     definitions = {
-      "search_documents":("Search the local document library.",{"query":{"type":"string","minLength":1,"maxLength":240},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
-      "get_document":("Retrieve one full document by ID.",{"document_id":{"type":"string","minLength":1,"maxLength":40}},["document_id"]),
+      "search_documents":("Search the local document library.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
+      "get_document":("Retrieve one full document by ID.",{"document_id":{"type":"string"}},["document_id"]),
       "search_records":("Search local workspace records.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
-      "get_record":("Retrieve one workspace record by ID.",{"record_id":{"type":"string","minLength":1,"maxLength":40}},["record_id"]),
-      "create_task":("Create a task in the disposable local sandbox; no notification is sent.",{"title":{"type":"string","minLength":1,"maxLength":160},"owner":{"type":"string","minLength":1,"maxLength":100},"due_date":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$","description":"ISO date YYYY-MM-DD"},"related_record_id":{"type":"string","minLength":1,"maxLength":40,"description":"ID of an existing workspace record"}},["title","owner","due_date","related_record_id"]),
-      "update_record":("Update status and append a note to a sandbox record; cannot delete.",{"record_id":{"type":"string"},"status":{"type":"string","enum":["active","open","in_progress","blocked","done","review","pending_review","investigating","closed"]},"note":{"type":"string","maxLength":1000}},["record_id","status","note"]),
-      "draft_message":("Save a message draft locally. This never sends a message.",{"recipient":{"type":"string","minLength":1,"maxLength":120},"subject":{"type":"string","minLength":1,"maxLength":200},"body":{"type":"string","minLength":1,"maxLength":3000}},["recipient","subject","body"])
+      "get_record":("Retrieve one workspace record by ID.",{"record_id":{"type":"string"}},["record_id"]),
+      "create_task":("Create a task in the disposable local sandbox; no notification is sent.",{"title":{"type":"string"},"owner":{"type":"string"},"due_date":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$","description":"ISO date YYYY-MM-DD"},"related_record_id":{"type":"string","description":"ID of an existing workspace record"}},["title","owner","due_date","related_record_id"]),
+      "update_record":("Update status and append a note to a sandbox record; cannot delete.",{"record_id":{"type":"string"},"status":{"type":"string","enum":["active","open","in_progress","blocked","done","review","pending_review","investigating","closed"]},"note":{"type":"string"}},["record_id","status","note"]),
+      "draft_message":("Save a message draft locally. This never sends a message.",{"recipient":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}},["recipient","subject","body"])
     }
     if agent_type not in {"knowledge","workflow"}:
         raise ValueError(f"Unknown agent type: {agent_type}")

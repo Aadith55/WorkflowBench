@@ -85,3 +85,18 @@ def test_tool_schemas_reject_unknown_agent_type():
     import pytest
     with pytest.raises(ValueError, match="Unknown agent type"):
         tool_schemas("admin")
+
+
+def test_strict_json_schemas_use_supported_constraints_only():
+    for tool in tool_schemas("knowledge") + tool_schemas("workflow"):
+        properties = tool["parameters"]["properties"]
+        for schema in properties.values():
+            assert "minLength" not in schema
+            assert "maxLength" not in schema
+        assert tool["strict"] is True
+        assert tool["parameters"]["additionalProperties"] is False
+        assert set(tool["parameters"]["required"]) == set(properties)
+    create_task = next(
+        tool for tool in tool_schemas("workflow") if tool["name"] == "create_task"
+    )
+    assert create_task["parameters"]["properties"]["due_date"]["pattern"] == r"^\d{4}-\d{2}-\d{2}$"
