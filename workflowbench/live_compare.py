@@ -25,6 +25,17 @@ from .tools import Sandbox
 STRATEGIES = ("baseline", "verified")
 
 
+def _write_results_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Write rows with a union schema because agents expose different metrics."""
+    if not rows:
+        return
+    fieldnames = list(dict.fromkeys(key for row in rows for key in row))
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def build_comparison_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Summarise each agent separately and pair repeated trials by stable pair ID."""
     output: dict[str, Any] = {}
@@ -164,10 +175,7 @@ def run_comparison(
         for row in results
     ]
     if flattened:
-        with (destination / "results.csv").open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=list(flattened[0].keys()))
-            writer.writeheader()
-            writer.writerows(flattened)
+        _write_results_csv(destination / "results.csv", flattened)
     return summary
 
 
