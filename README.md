@@ -61,7 +61,13 @@ Open the local Streamlit URL printed in the terminal. Start with **Scripted walk
 
 Never commit `.env` or paste an API key into source code. The `.gitignore` excludes it.
 
-## 3. Run tests
+## 3. Run matched live experiments through GitHub Actions
+
+Add `OPENAI_API_KEY` as a repository Actions secret, then open **Actions -> Live API experiment -> Run workflow**. The default pilot runs two development cases per agent under both baseline and verified strategies (eight model runs total). Results are uploaded as an artifact containing a summary, CSV metrics and full execution traces.
+
+See [docs/LIVE_EXPERIMENTS.md](docs/LIVE_EXPERIMENTS.md) for the one-time secret setup, cost controls and artifact details. Never put your API key in source code or a chat message.
+
+## 4. Run tests
 
 ```bash
 pytest
@@ -69,7 +75,7 @@ pytest
 
 Tests cover dataset loading, sandbox tool boundaries, deterministic grading, statistical helpers and the Responses API tool loop using a fake client. Tests do not make paid API calls.
 
-## 4. Command line
+## 5. Command line
 
 List cases:
 
@@ -98,7 +104,7 @@ python -m workflowbench.cli benchmark --agent workflow --strategy verified --spl
 
 Start with small batches. Each live case makes one or more model requests and may incur API cost.
 
-## 5. Project map
+## 6. Project map
 
 ```text
 WorkflowBench/
@@ -123,19 +129,21 @@ WorkflowBench/
 │   ├── RESEARCH_NOTES.md
 │   └── INTERVIEW_GUIDE.md
 ├── tests/
+├── scripts/ (live experiment entry point is a package module)
+├── docs/LIVE_EXPERIMENTS.md
 ├── LEARNING_GUIDE.md
 ├── .env.example
 └── pyproject.toml
 ```
 
-## 6. The two strategies
+## 7. The two strategies
 
 - **Baseline:** task-focused instructions and the same approved tool registry.
 - **Verified:** adds explicit source retrieval and post-action verification instructions.
 
 Keep the model, dataset version, tool schemas and other settings fixed when comparing strategies. The starter app stores the strategy label, model token usage, timing, trace and deterministic metrics.
 
-## 7. Evaluation approach
+## 8. Evaluation approach
 
 Knowledge tasks use deterministic checks for required terms, source retrieval, citation coverage and abstention. Workflow tasks use tool-call coverage and postcondition checks against the sandbox state. We intentionally do not use an LLM to grade another LLM in v0.1.
 
@@ -143,7 +151,7 @@ The dashboard reports task success, tool precision/recall/F1, state-match rate o
 
 See [`docs/EVALUATION_PLAN.md`](docs/EVALUATION_PLAN.md) before running experiments.
 
-## 8. Research references
+## 9. Research references
 
 - [OpenAI function calling guide](https://developers.openai.com/api/docs/guides/function-calling)
 - [OpenAI structured outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
@@ -153,13 +161,14 @@ See [`docs/EVALUATION_PLAN.md`](docs/EVALUATION_PLAN.md) before running experime
 
 These are methodological references. WorkflowBench's 24 scenarios are original synthetic examples, not reproductions of these benchmarks.
 
-## 9. Current limitations
+## 10. Current limitations
 
 - The dataset is small and partly synthetic; it does not represent real customer behaviour.
 - Search uses simple keyword matching, not embeddings or a production retrieval system.
 - The evaluator is intentionally deterministic and narrow. It does not judge nuanced writing quality.
 - The prototype stores experiment history locally in SQLite and has no authentication or multi-user support.
 - The baseline/verified comparison is an early prompt-and-verification experiment, not a complete factorial design.
+- Live experiment execution requires an OpenAI API key with API access and available billing/usage quota.
 - Token cost is unknown unless verified provider prices are configured.
 
 The next research iteration should add more human-reviewed cases, measure grader agreement, repeat runs for stochasticity, and document failure categories before making performance claims.

@@ -1,0 +1,125 @@
+name: Live API experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: OpenAI model
+        required: true
+        type: choice
+        options:
+          - gpt-6-luna
+          - gpt-6.1-terra
+          - gpt-6.1-sol
+        default: gpt-6-luna
+      agent:
+        description: Agent track to evaluate
+        required: true
+        type: choice
+        options:
+          - both
+          - knowledge
+          - workflow
+        default: both
+      split:
+        description: Benchmark split
+        required: true
+        type: choice
+        options:
+          - development
+          - evaluation
+        default: development
+      cases_per_agent:
+        description: Number of cases per selected agent (max 8)
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "4"
+          - "8"
+        default: "2"
+      repetitions:
+        description: Matched repetitions per case (max 3)
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+        default: "1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflowbench-live-experiment
+  cancel-in-progress: false
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MODEL: ${{ inputs.model }}
+      AGENT: ${{ inputs.agent }}
+      SPLIT: ${{ inputs.split }}
+      CASES_PER_AGENT: ${{ inputs.cases_per_agent }}
+      REPETITIONS: ${{ inputs.repetitions }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Configure published token prices
+        shell: bash
+        run: |
+          case "$MODEL" in
+            gpt-6-luna)
+              echo "INPUT_PRICE_PER_MILLION=0.10" >> "$GITHUB_ENV"
+              echo "OUTPUT_PRICE_PER_MILLION=0.50" >> "$GITHUB_ENV"
+              ;;
+            gpt-6.1-terra)
+              echo "INPUT_PRICE_PER_MILLION=1.00" >> "$GITHUB_ENV"
+              echo "OUTPUT_PRICE_PER_MILLION=5.00" >> "$GITHUB_ENV"
+              ;;
+            gpt-6.1-sol)
+              echo "INPUT_PRICE_PER_MILLION=2.00" >> "$GITHUB_ENV"
+              echo "OUTPUT_PRICE_PER_MILLION=10.00" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+      - name: Run matched experiment
+        shell: bash
+        run: |
+          if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+            echo "::error::Add OPENAI_API_KEY under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          python -m workflowbench.live_compare \
+            --model "$MODEL" \
+            --agent "$AGENT" \
+            --split "$SPLIT" \
+            --cases-per-agent "$CASES_PER_AGENT" \
+            --repetitions "$REPETITIONS" \
+            --output-dir artifacts/live-experiment
+
+      - name: Upload results and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflowbench-live-experiment-${{ github.run_id }}
+          path: artifacts/live-experiment/
+          if-no-files-found: warn
+          retention-days: 30

@@ -36,3 +36,11 @@
 
 ## Repository
 Source, tests and documentation are maintained at https://github.com/Aadith55/WorkflowBench.
+
+
+## Live experiment execution
+- A manual GitHub Actions workflow runs paired baseline and verified trials against the live Responses API.
+- API credentials are read only from the repository Actions secret named `OPENAI_API_KEY`.
+- Results are uploaded as a 30-day artifact containing a summary, CSV metrics and full observable traces.
+- Default pilot: two development cases per agent, one repetition, both strategies (eight model runs).
+- No live runs have been performed yet; an API secret must be configured and the workflow manually started.
