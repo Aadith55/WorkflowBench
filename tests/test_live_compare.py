@@ -83,4 +83,5 @@ def test_results_csv_includes_metric_columns_from_all_agent_types(tmp_path):
 
     assert len(exported) == 2
     assert exported[0]["state_match_rate"] == ""
-    assert exported[1]["required_term_coverage"] == "1.0"
+    assert exported[0]["required_term_coverage"] == "1.0"
+    assert exported[1]["required_term_coverage"] == ""
