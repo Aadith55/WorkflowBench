@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from workflowbench.analytics import mcnemar_exact, summarise_runs
+from workflowbench.analytics import mcnemar_exact
 from workflowbench.dataset import load_dataset
 from workflowbench.demo import run_scripted_walkthrough
 from workflowbench.experiments import run_one_case
@@ -43,36 +43,42 @@ col4.metric("Held-out scenarios", sum(c["split"] == "evaluation" for c in cases)
 
 st.info("The first benchmark is intentionally small so you can understand every scenario. Results from this starter dataset are exploratory, not broad claims about agent capability.")
 
-selected_id = st.selectbox(
-    "Choose a benchmark task",
-    options=[case["id"] for case in agent_cases],
-    format_func=lambda case_id: f"{case_id} · {case_by_id[case_id]['split']} · {case_by_id[case_id]['category']}",
-)
-selected_case = case_by_id[selected_id]
-with st.expander("Task and expected evaluation criteria", expanded=True):
-    st.write(selected_case["task"])
-    st.json(selected_case["expected"])
+if run_mode == "Scripted walkthrough":
+    st.info(
+        "This is a fixed teaching example (K01 or W01). It does not run the selected benchmark case "
+        "or call an LLM."
+    )
+    if st.button("Run scripted walkthrough", type="primary"):
+        run, _ = run_scripted_walkthrough(agent_type)
+        st.session_state["latest_demo"] = run.to_dict()
+        st.session_state.pop("latest_live", None)
+else:
+    selected_id = st.selectbox(
+        "Choose a benchmark task",
+        options=[case["id"] for case in agent_cases],
+        format_func=lambda case_id: (
+            f"{case_id} · {case_by_id[case_id]['split']} · {case_by_id[case_id]['category']}"
+        ),
+    )
+    selected_case = case_by_id[selected_id]
+    with st.expander("Task and expected evaluation criteria", expanded=True):
+        st.write(selected_case["task"])
+        st.json(selected_case["expected"])
 
-left, right = st.columns(2)
-with left:
-    if st.button("Run selected task", type="primary", disabled=(run_mode == "Live model run" and not api_key_input)):
-        if run_mode == "Scripted walkthrough":
-            run, _ = run_scripted_walkthrough(agent_type)
-            st.session_state["latest_demo"] = run.to_dict()
-            st.session_state.pop("latest_live", None)
-        else:
-            try:
-                from openai import OpenAI
-                client = OpenAI(api_key=api_key_input)
-                with st.spinner("Running the selected case..."):
-                    run, metrics = run_one_case(selected_case, client, model, strategy, allow_writes, save=True)
-                    st.session_state["latest_live"] = {"run": run.to_dict(), "metrics": metrics}
-                    st.session_state.pop("latest_demo", None)
-            except Exception as exc:
-                st.error(f"Could not start the live run: {type(exc).__name__}: {exc}")
+    if st.button("Run selected live task", type="primary", disabled=not api_key_input):
+        st.session_state.pop("latest_live", None)
+        try:
+            from openai import OpenAI
 
-with right:
-    st.caption("Scripted walkthroughs are fixed examples. They do not call an LLM and must never be reported as AI evaluation results.")
+            client = OpenAI(api_key=api_key_input)
+            with st.spinner("Running the selected case..."):
+                run, metrics = run_one_case(
+                    selected_case, client, model, strategy, allow_writes, save=True
+                )
+            st.session_state["latest_live"] = {"run": run.to_dict(), "metrics": metrics}
+            st.session_state.pop("latest_demo", None)
+        except Exception as exc:
+            st.error(f"Could not start the live run: {type(exc).__name__}: {exc}")
 
 if "latest_demo" in st.session_state:
     demo = st.session_state["latest_demo"]
@@ -105,24 +111,61 @@ st.divider()
 st.subheader("Experiment history")
 history = recent_runs(limit=100)
 if not history:
-    st.caption("No live model runs have been saved yet. Try the scripted walkthrough first, then configure an API key for a real experiment.")
+    st.caption(
+        "No live model runs have been saved yet. Try the scripted walkthrough first, "
+        "then configure an API key for a real experiment."
+    )
 else:
-    rows = [item["metrics"] | {"created_at": item["created_at"], "run_id": item["id"]} for item in history]
+    rows = []
+    for item in history:
+        metrics = item["metrics"]
+        rows.append(metrics | {
+            "created_at": item["created_at"],
+            "run_id": item["id"],
+            "model": metrics.get("model", "(not recorded)"),
+            "allow_writes": bool(metrics.get("allow_writes", False)),
+            "dataset_version": metrics.get("dataset_version", "(legacy)"),
+        })
     history_df = pd.DataFrame(rows)
     st.dataframe(history_df, use_container_width=True, hide_index=True)
 
     strategy_rows = [row for row in rows if row.get("agent_type") == agent_type]
     if strategy_rows:
-        chart_df = pd.DataFrame(strategy_rows).groupby("strategy", as_index=True)["task_success"].mean()
-        st.markdown("**Observed task-success rate by strategy (live runs only)**")
-        st.bar_chart(chart_df)
+        st.markdown("**Observed task-success rate by strategy and configuration**")
+        chart_frame = pd.DataFrame(strategy_rows).copy()
+        chart_frame["configuration"] = chart_frame.apply(
+            lambda row: (
+                f"{row['model']} | writes={row['allow_writes']} | {row['dataset_version']}"
+            ),
+            axis=1,
+        )
+        chart_data = chart_frame.pivot_table(
+            index="configuration", columns="strategy", values="task_success", aggfunc="mean"
+        )
+        st.bar_chart(chart_data)
 
-    base = [row for row in strategy_rows if row.get("strategy") == "baseline"]
-    verified = [row for row in strategy_rows if row.get("strategy") == "verified"]
-    if base and verified:
-        st.markdown("**Matched-case comparison**")
-        comparison = mcnemar_exact(base, verified)
-        st.json(comparison)
-        st.caption("The exact McNemar test uses only case IDs run under both strategies. Interpret p-values cautiously with a small starter benchmark.")
+        config_keys = sorted({
+            (row["model"], row["allow_writes"], row["dataset_version"])
+            for row in strategy_rows
+        })
+        for model_name, writes_enabled, dataset_version in config_keys:
+            config_rows = [
+                row for row in strategy_rows
+                if row["model"] == model_name
+                and row["allow_writes"] == writes_enabled
+                and row["dataset_version"] == dataset_version
+            ]
+            base = [row for row in config_rows if row.get("strategy") == "baseline"]
+            verified = [row for row in config_rows if row.get("strategy") == "verified"]
+            if base and verified:
+                st.markdown(
+                    f"**Matched comparison: {model_name} | writes={writes_enabled} | "
+                    f"{dataset_version}**"
+                )
+                st.json(mcnemar_exact(base, verified))
+                st.caption(
+                    "Only matched case IDs from the same model, dataset version and write setting "
+                    "are compared. Interpret p-values cautiously with this small starter benchmark."
+                )
 
 st.caption("All data is synthetic and local. Tool actions modify only an in-memory copy of the example workspace; no external messages are sent.")

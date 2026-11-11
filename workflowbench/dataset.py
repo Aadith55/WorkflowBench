@@ -6,6 +6,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
+BENCHMARK_VERSION = "starter-v0.1"
 
 def load_dataset(path: str | Path | None = None) -> list[dict[str, Any]]:
     source = Path(path) if path else DATA_DIR / "benchmark.jsonl"
