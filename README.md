@@ -16,7 +16,7 @@ The first version is deliberately small and teachable. It avoids agent framework
 - Results from this small benchmark are exploratory. Do not describe them as statistically conclusive or generalised to production agents.
 - Live runs use the OpenAI Responses API with strict function schemas. The API key is optional until you choose **Live model run**.
 - The scripted walkthrough is a fixed teaching example. It is **not** an LLM run and its output must not be used as model performance evidence.
-- Function-call arguments are checked locally with Pydantic before a tool runs.
+- Function-call arguments are checked locally with Pydantic before a tool runs. The model-facing strict JSON Schemas use the supported Structured Outputs subset; stricter length and calendar-date checks remain in the application.
 - All example data is synthetic. All writes happen in memory and are discarded after a run. `draft_message` never sends a message. There is no delete tool.
 - Cost is calculated only when you enter verified token prices in `.env`; otherwise token counts are recorded and cost remains unknown.
 

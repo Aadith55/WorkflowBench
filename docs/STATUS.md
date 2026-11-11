@@ -2,7 +2,7 @@
 
 ## Implemented
 - Two agent types with a shared Responses API tool-calling loop.
-- Strict JSON Schema function definitions and strict local Pydantic argument validation.
+- Strict-mode JSON Schema function definitions use the supported Structured Outputs subset; strict local Pydantic validation enforces argument types, lengths and calendar dates.
 - Disposable in-memory document and workspace sandbox.
 - Agent-specific tool allowlists, explicit write approval, no-send drafts, no-delete tool surface and incident-closure precondition.
 - 24 labelled synthetic benchmark cases (12 per agent; 8 development and 16 held-out evaluation).
@@ -15,7 +15,7 @@
 - Learning, architecture, evaluation and research documentation.
 
 ## Verification completed locally
-- 24 automated tests passed.
+- 25 automated tests passed.
 - Python compilation passed for app, package and test files.
 - Scripted knowledge and workflow walkthroughs ran successfully.
 - The fake Responses client exercises tool-calling without paid API calls.
