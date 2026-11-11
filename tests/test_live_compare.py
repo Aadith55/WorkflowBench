@@ -1,4 +1,6 @@
-from workflowbench.live_compare import build_comparison_summary
+import csv
+
+from workflowbench.live_compare import build_comparison_summary, _write_results_csv
 
 
 def _row(agent, strategy, pair_id, success, cost):
@@ -42,3 +44,43 @@ def test_comparison_returns_empty_stats_for_missing_strategy():
     assert summary["knowledge"]["by_strategy"]["baseline"]["n"] == 1
     assert summary["knowledge"]["by_strategy"]["verified"]["n"] == 0
     assert summary["knowledge"]["paired_comparison"]["matched_cases"] == 0
+
+
+
+def test_results_csv_includes_metric_columns_from_all_agent_types(tmp_path):
+    rows = [
+        {
+            "agent_type": "knowledge",
+            "strategy": "baseline",
+            "task_success": 1,
+            "required_term_coverage": 1.0,
+        },
+        {
+            "agent_type": "workflow",
+            "strategy": "baseline",
+            "task_success": 0,
+            "state_match_rate": 0.5,
+            "sandbox_mutations": 2,
+            "mutation_count_match": 0,
+            "blocked_action_attempts": 1,
+            "tool_errors": 1,
+        },
+    ]
+    destination = tmp_path / "results.csv"
+
+    _write_results_csv(destination, rows)
+
+    with destination.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        exported = list(reader)
+        assert {
+            "state_match_rate",
+            "sandbox_mutations",
+            "mutation_count_match",
+            "blocked_action_attempts",
+            "tool_errors",
+        }.issubset(reader.fieldnames)
+
+    assert len(exported) == 2
+    assert exported[0]["state_match_rate"] == ""
+    assert exported[1]["required_term_coverage"] == "1.0"
