@@ -4,11 +4,11 @@ from workflowbench.models import AgentRun
 
 
 def test_experiment_records_model_write_setting_and_dataset_version(monkeypatch):
-    def fake_run_live_agent(**kwargs):
+    def fake_run_live_agent(case, sandbox, client, model, strategy="baseline", allow_writes=False):
         return AgentRun(
-            case_id=kwargs["case"]["id"],
-            agent_type=kwargs["case"]["agent_type"],
-            strategy=kwargs["strategy"],
+            case_id=case["id"],
+            agent_type=case["agent_type"],
+            strategy=strategy,
             status="completed",
             final_output="Answer",
         )
