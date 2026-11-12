@@ -100,3 +100,27 @@ def test_strict_json_schemas_use_supported_constraints_only():
         tool for tool in tool_schemas("workflow") if tool["name"] == "create_task"
     )
     assert create_task["parameters"]["properties"]["due_date"]["pattern"] == r"^\d{4}-\d{2}-\d{2}$"
+
+def test_get_document_schema_explains_exact_document_id_argument():
+    schema = next(tool for tool in tool_schemas("knowledge") if tool["name"] == "get_document")
+    assert set(schema["parameters"]["properties"]) == {"document_id"}
+    assert "exact document ID" in schema["description"]
+    assert "do not pass the search query or limit" in schema["description"]
+    assert "Exact source ID" in schema["parameters"]["properties"]["document_id"]["description"]
+
+
+def test_invalid_get_document_arguments_return_actionable_validation_details():
+    sandbox = Sandbox()
+    result, event = sandbox.call(
+        "get_document",
+        {"query": "account disable worker departure", "limit": 1},
+        "knowledge",
+    )
+
+    assert event == "tool_error"
+    assert result["ok"] is False
+    locations = {detail["location"] for detail in result["details"]}
+    assert "document_id" in locations
+    assert "query" in locations
+    assert "limit" in locations
+    assert sandbox.mutations == 0
