@@ -214,44 +214,49 @@ def run_ollama_agent(
             if not function_calls:
                 final_output = assistant_message["content"].strip()
                 if agent_type == "knowledge" and not _has_full_document_retrieval(trace):
-                    if retrieval_reminders >= 2:
-                        raise RuntimeError(
-                            "Knowledge Agent returned a final answer without retrieving "
-                            "a full document from this run's search results. The answer was not accepted."
-                        )
-                    retrieval_reminders += 1
-                    available_ids = _search_result_document_ids(trace)
-                    if available_ids:
-                        retrieval_guidance = (
-                            "The exact document IDs returned by search_documents in this run are: "
-                            + ", ".join(available_ids)
-                            + ". Choose the result that best matches the task and call get_document "
-                            "with its ID copied exactly."
-                        )
-                    else:
-                        retrieval_guidance = (
-                            "No document IDs have been returned by search_documents in this run. "
-                            "Call search_documents first, inspect its results, and then retrieve "
-                            "the full document using an exact returned ID."
-                        )
+                    if retrieval_reminders < 2:
+                        retrieval_reminders += 1
+                        available_ids = _search_result_document_ids(trace)
+                        if available_ids:
+                            retrieval_guidance = (
+                                "The exact document IDs returned by search_documents in this run are: "
+                                + ", ".join(available_ids)
+                                + ". Choose the result that best matches the task and call get_document "
+                                "with its ID copied exactly."
+                            )
+                        else:
+                            retrieval_guidance = (
+                                "No document IDs have been returned by search_documents in this run. "
+                                "Call search_documents first, inspect its results, and then retrieve "
+                                "the full document using an exact returned ID."
+                            )
+                        trace.append(TraceEvent(
+                            index=len(trace) + 1,
+                            event_type="retrieval_gate",
+                            message=(
+                                "Final answer paused: no full document from this run's search results "
+                                "was retrieved."
+                            ),
+                        ))
+                        messages.append({
+                            "role": "user",
+                            "content": (
+                                "Your final answer is not accepted yet. Search-result snippets are "
+                                "not full evidence. " + retrieval_guidance
+                                + " Read the full document and then give a concise answer with its "
+                                "source citation. Do not assume a default ID or describe your analysis."
+                            ),
+                        })
+                        continue
                     trace.append(TraceEvent(
                         index=len(trace) + 1,
                         event_type="retrieval_gate",
                         message=(
-                            "Final answer paused: no full document from this run's search results "
-                            "was retrieved."
+                            "The model still did not retrieve a full document after two reminders. "
+                            "The response is retained for deterministic grading; retrieval recall "
+                            "will determine task success."
                         ),
                     ))
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            "Your final answer is not accepted yet. Search-result snippets are "
-                            "not full evidence. " + retrieval_guidance
-                            + " Read the full document and then give a concise answer with its "
-                            "source citation. Do not assume a default ID or describe your analysis."
-                        ),
-                    })
-                    continue
 
                 if agent_type == "knowledge":
                     # Do not expose benchmark answer-key labels to the model. Enforce
@@ -262,43 +267,49 @@ def run_ollama_agent(
                         if f"[{doc_id}]".casefold() not in final_output.casefold()
                     ]
                     if missing_citations:
-                        if citation_reminders >= 1:
-                            raise RuntimeError(
-                                "Knowledge Agent returned an answer without the required "
-                                f"source citation(s): {', '.join(missing_citations)}."
-                            )
-                        citation_reminders += 1
+                        if citation_reminders < 1:
+                            citation_reminders += 1
+                            trace.append(TraceEvent(
+                                index=len(trace) + 1,
+                                event_type="citation_gate",
+                                message=(
+                                    "Final answer paused: required source citation(s) are missing: "
+                                    + ", ".join(missing_citations)
+                                ),
+                            ))
+                            source_content = [
+                                event.result.get("content", "")
+                                for event in trace
+                                if event.event_type == "tool_result"
+                                and event.tool_name == "get_document"
+                                and isinstance(event.result, dict)
+                                and event.result.get("id") in missing_citations
+                            ]
+                            messages.append({
+                                "role": "user",
+                                "content": (
+                                    "Your answer is incomplete because it omitted the required "
+                                    "source citation(s): "
+                                    + ", ".join(f"[{doc_id}]" for doc_id in missing_citations)
+                                    + ". Re-read the full source content already retrieved and "
+                                    "return a concise corrected answer with those exact citation "
+                                    "markers. Preserve the source's meaning precisely: keep the "
+                                    "same actor, action, object, and timing; do not change what "
+                                    "a deadline applies to. Do not include analysis or planning.\n"
+                                    + "\n".join(source_content)
+                                ),
+                            })
+                            continue
                         trace.append(TraceEvent(
                             index=len(trace) + 1,
                             event_type="citation_gate",
                             message=(
-                                "Final answer paused: required source citation(s) are missing: "
+                                "The model still omitted citation(s) after the correction attempt: "
                                 + ", ".join(missing_citations)
+                                + ". The response is retained for deterministic grading; citation "
+                                "coverage will determine task success."
                             ),
                         ))
-                        source_content = [
-                            event.result.get("content", "")
-                            for event in trace
-                            if event.event_type == "tool_result"
-                            and event.tool_name == "get_document"
-                            and isinstance(event.result, dict)
-                            and event.result.get("id") in missing_citations
-                        ]
-                        messages.append({
-                            "role": "user",
-                            "content": (
-                                "Your answer is incomplete because it omitted the required "
-                                "source citation(s): "
-                                + ", ".join(f"[{doc_id}]" for doc_id in missing_citations)
-                                + ". Re-read the full source content already retrieved and "
-                                "return a concise corrected answer with those exact citation "
-                                "markers. Preserve the source's meaning precisely: keep the "
-                                "same actor, action, object, and timing; do not change what "
-                                "a deadline applies to. Do not include analysis or planning.\n"
-                                + "\n".join(source_content)
-                            ),
-                        })
-                        continue
 
                 # Qwen3 may include a visible closing think marker in content on some
                 # Ollama/model versions. Keep only the answer after that marker.
