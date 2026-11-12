@@ -18,7 +18,7 @@
 
 ## Verification
 
-- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 42 tests**.
+- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 44 tests**.
 - The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation and abstention grading when retrieved documents contain unrelated limitation statements.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
@@ -48,12 +48,10 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. A first Qwen3:4B Knowledge run completed but answered from a search snippet without calling `get_document`; a retrieval gate has now been added and requires a user-side rerun.
-- One successful live Qwen3:4B / Ollama baseline run has now passed Knowledge development case K01 with task_success=1. This is a single-case result, not evidence of general model performance or a baseline-versus-verified improvement.
-- No successful live Gemini run has yet been confirmed.
-- Streamlit has been manually launched in the user's environment.
-- No model-performance improvement, cost saving or market opportunity has been measured.
-- The benchmark is a small synthetic pilot and is not representative of production traffic.
+- The user successfully launched Ollama and Streamlit locally. A live Qwen3:4B baseline run passed K01 once. A later four-case Knowledge development batch completed three model responses and produced two task passes (K03 and K04); K01 hit its 2,048-token output cap and K02 answered correctly but made one malformed redundant `get_document` call before recovering.
+- The `get_document` schema and Knowledge instructions now explicitly require the exact `document_id` field. Tool validation errors now return actionable missing/extra-field details. A user-side rerun is still needed to determine whether this reduces malformed calls.
+- No successful live Gemini run has yet been confirmed, and no full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
+- No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
 
