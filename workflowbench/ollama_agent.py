@@ -42,17 +42,28 @@ def _chat_tools(agent_type: str) -> list[dict[str, Any]]:
     ]
 
 
-def _has_full_document_retrieval(trace: list[TraceEvent]) -> bool:
-    """Return true only when get_document produced non-empty full source content."""
-    return any(
-        event.event_type == "tool_result"
-        and event.tool_name == "get_document"
-        and isinstance(event.result, dict)
-        and str(event.result.get("id", "")).startswith("DOC-")
-        and isinstance(event.result.get("content"), str)
-        and bool(event.result["content"].strip())
-        for event in trace
-    )
+def _search_result_document_ids(trace: list[TraceEvent]) -> list[str]:
+    """Return unique document IDs actually exposed by search_documents in this run."""
+    document_ids: list[str] = []
+    for event in trace:
+        if event.event_type != "tool_result" or event.tool_name != "search_documents":
+            continue
+        if not isinstance(event.result, dict):
+            continue
+        results = event.result.get("results")
+        if not isinstance(results, list):
+            continue
+        for row in results:
+            if not isinstance(row, dict):
+                continue
+            document_id = row.get("id")
+            if (
+                isinstance(document_id, str)
+                and document_id.startswith("DOC-")
+                and document_id not in document_ids
+            ):
+                document_ids.append(document_id)
+    return document_ids
 
 
 def _retrieved_document_ids(trace: list[TraceEvent]) -> list[str]:
@@ -67,6 +78,13 @@ def _retrieved_document_ids(trace: list[TraceEvent]) -> list[str]:
         and isinstance(event.result.get("content"), str)
         and event.result["content"].strip()
     ))
+
+
+def _has_full_document_retrieval(trace: list[TraceEvent]) -> bool:
+    """Require a full document whose ID came from this run's search results."""
+    searched = set(_search_result_document_ids(trace))
+    retrieved = set(_retrieved_document_ids(trace))
+    return bool(searched.intersection(retrieved))
 
 
 def _num_predict() -> int:
@@ -141,13 +159,16 @@ def run_ollama_agent(
             instructions += VERIFIED_ADDENDUM
         if agent_type == "knowledge":
             instructions += (
-                "\nMandatory retrieval gate: do not answer from search snippets. "
-                "After search_documents returns relevant document IDs, copy the exact "
-                "source ID and call get_document with exactly {document_id: \"DOC-001\"}. "
-                "Never pass query or limit to get_document; those arguments belong only "
-                "to search_documents. Read the full returned content. If you have not "
-                "successfully called get_document, you must call it before producing any "
-                "final answer. Do not include analysis or planning."
+                "\nMandatory Knowledge Agent source protocol:\n"
+                "1. Call search_documents first and inspect its returned result IDs, titles, and snippets.\n"
+                "2. Select the result whose title and snippet best match the task.\n"
+                "3. Copy that result's document ID exactly and call get_document with exactly one "
+                "argument named document_id.\n"
+                "4. Never assume a default document ID, reuse an ID from another task, or invent an ID. "
+                "Document IDs vary by task.\n"
+                "5. Read the full content returned by get_document. Answer only from that content "
+                "and cite the same ID in square brackets.\n"
+                "Search snippets alone are not sufficient evidence. Do not include analysis or planning."
             )
 
         messages: list[dict[str, Any]] = [
@@ -196,36 +217,48 @@ def run_ollama_agent(
                     if retrieval_reminders >= 2:
                         raise RuntimeError(
                             "Knowledge Agent returned a final answer without retrieving "
-                            "a full source document with get_document. The answer was not accepted."
+                            "a full document from this run's search results. The answer was not accepted."
                         )
                     retrieval_reminders += 1
+                    available_ids = _search_result_document_ids(trace)
+                    if available_ids:
+                        retrieval_guidance = (
+                            "The exact document IDs returned by search_documents in this run are: "
+                            + ", ".join(available_ids)
+                            + ". Choose the result that best matches the task and call get_document "
+                            "with its ID copied exactly."
+                        )
+                    else:
+                        retrieval_guidance = (
+                            "No document IDs have been returned by search_documents in this run. "
+                            "Call search_documents first, inspect its results, and then retrieve "
+                            "the full document using an exact returned ID."
+                        )
                     trace.append(TraceEvent(
                         index=len(trace) + 1,
                         event_type="retrieval_gate",
                         message=(
-                            "Final answer paused: no full source document was retrieved. "
-                            "The model was asked to call get_document before answering."
+                            "Final answer paused: no full document from this run's search results "
+                            "was retrieved."
                         ),
                     ))
                     messages.append({
                         "role": "user",
                         "content": (
-                            "Your final answer is not accepted yet. You used only search "
-                            "results, which are snippets. Call get_document with the ID of "
-                            "the relevant search result, read its full content, and then "
-                            "give a concise answer with the source citation. Do not describe "
-                            "your analysis."
+                            "Your final answer is not accepted yet. Search-result snippets are "
+                            "not full evidence. " + retrieval_guidance
+                            + " Read the full document and then give a concise answer with its "
+                            "source citation. Do not assume a default ID or describe your analysis."
                         ),
                     })
                     continue
 
                 if agent_type == "knowledge":
-                    required_ids = [
-                        str(doc_id)
-                        for doc_id in case.get("expected", {}).get("required_doc_ids", [])
-                    ] or _retrieved_document_ids(trace)
+                    # Do not expose benchmark answer-key labels to the model. Enforce
+                    # citations only for documents the model actually retrieved.
+                    retrieved_ids = _retrieved_document_ids(trace)
                     missing_citations = [
-                        doc_id for doc_id in required_ids
+                        doc_id for doc_id in retrieved_ids
                         if f"[{doc_id}]".casefold() not in final_output.casefold()
                     ]
                     if missing_citations:
@@ -303,9 +336,33 @@ def run_ollama_agent(
                     raise ValueError(f"Tool '{name}' arguments must be a JSON object.")
 
                 call_started = time.perf_counter()
-                result, event_type = sandbox.call(
-                    name, arguments, agent_type, allow_writes=allow_writes
-                )
+                if agent_type == "knowledge" and name == "get_document":
+                    available_ids = _search_result_document_ids(trace)
+                    requested_id = arguments.get("document_id")
+                    if requested_id not in available_ids:
+                        result = {
+                            "ok": False,
+                            "error": (
+                                "get_document requires an exact document ID returned by "
+                                "search_documents in this run."
+                            ),
+                            "available_document_ids": available_ids,
+                            "instruction": (
+                                "Copy one of the available_document_ids exactly. Do not "
+                                "guess, assume a default ID, or reuse an ID from another task."
+                                if available_ids
+                                else "Call search_documents first; no document ID is available yet."
+                            ),
+                        }
+                        event_type = "tool_error"
+                    else:
+                        result, event_type = sandbox.call(
+                            name, arguments, agent_type, allow_writes=allow_writes
+                        )
+                else:
+                    result, event_type = sandbox.call(
+                        name, arguments, agent_type, allow_writes=allow_writes
+                    )
                 duration_ms = (time.perf_counter() - call_started) * 1000
                 trace.append(TraceEvent(
                     index=len(trace) + 1,
