@@ -54,7 +54,7 @@ def test_abstention_case_is_explicitly_marked_as_not_specified():
     cases = {case["id"]: case for case in load_dataset()}
     run, _, metrics = simulate_case(cases["K12"])
     assert run.status == "completed"
-    assert "not specified" in run.final_output.lower()
+    assert "does not specify a monetary penalty" in run.final_output.lower()
     assert "[DOC-004]" in run.final_output
     assert metrics["task_success"] == 1
 
