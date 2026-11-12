@@ -19,7 +19,7 @@ The two tracks share instructions, schemas, trace structures and sandbox control
 
 ## Explain the tool-calling loop
 
-1. The selected provider adapter sends the task and JSON-schema tool definitions to its model endpoint: Responses API for OpenAI, Chat Completions for Gemini and Ollama.
+1. The selected provider adapter sends the task and JSON-schema tool definitions to its model endpoint: Responses API for OpenAI, Chat Completions for Gemini, and Ollama's native `/api/chat` endpoint with Qwen3 thinking disabled for tool-use tasks.
 2. The model may return a function call containing a tool name and arguments.
 3. The application parses the arguments and checks the tool allowlist and write permission.
 4. The local Python function executes inside the sandbox.
