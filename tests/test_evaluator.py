@@ -10,7 +10,7 @@ def test_knowledge_case_passes_with_retrieval_terms_and_citation():
             TraceEvent(1,"tool_call","search","search_documents"),
             TraceEvent(2,"tool_result","found","search_documents",result={"results":[{"id":"DOC-001"}]}),
             TraceEvent(3,"tool_call","get","get_document"),
-            TraceEvent(4,"tool_result","read","get_document",result={"id":"DOC-001"})])
+            TraceEvent(4,"tool_result","read","get_document",result={"id":"DOC-001","content":"Access requests must be approved by the requesters manager. Standard access requests should be completed within one business day after approval."})])
     metrics = evaluate_run(case,run,Sandbox())
     assert metrics["task_success"] == 1
     assert metrics["citation_coverage"] == 1.0
