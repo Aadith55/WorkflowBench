@@ -61,6 +61,8 @@ class Sandbox:
         self.state = json.loads(workspace.read_text(encoding="utf-8"))
         self.initial_state = deepcopy(self.state)
         self.mutations = 0
+        # Track only IDs exposed by successful search_documents calls in this sandbox run.
+        self.searched_document_ids: list[str] = []
     def _search(self, query: str, rows: list[dict[str, Any]], fields: tuple[str, ...], limit: int):
         terms = _tokens(query)
         if not terms: return []
@@ -73,6 +75,9 @@ class Sandbox:
         return [deepcopy(row) for _, row in ranked[:limit]]
     def search_documents(self, query: str, limit: int = 5):
         rows = self._search(query, self.documents, ("title","content","id"), limit)
+        for row in rows:
+            if row["id"] not in self.searched_document_ids:
+                self.searched_document_ids.append(row["id"])
         return {"results":[{"id":d["id"],"title":d["title"],"version":d["version"],"snippet":d["content"][:260]} for d in rows]}
     def get_document(self, document_id: str):
         for row in self.documents:
@@ -125,6 +130,22 @@ class Sandbox:
         functions = {"search_documents":self.search_documents,"get_document":self.get_document,"search_records":self.search_records,"get_record":self.get_record,"create_task":self.create_task,"update_record":self.update_record,"draft_message":self.draft_message}
         try:
             validated = ARGUMENT_MODELS[name].model_validate(arguments)
+            if name == "get_document" and validated.document_id not in self.searched_document_ids:
+                available_ids = list(self.searched_document_ids)
+                return {
+                    "ok": False,
+                    "error": (
+                        "get_document requires an exact document ID returned by "
+                        "search_documents in this sandbox run."
+                    ),
+                    "available_document_ids": available_ids,
+                    "instruction": (
+                        "Copy one of the available_document_ids exactly. Do not guess, "
+                        "assume a default ID, or reuse an ID from another task."
+                        if available_ids
+                        else "Call search_documents first; no document ID is available yet."
+                    ),
+                }, "tool_error"
             result = functions[name](**validated.model_dump())
         except ValidationError as exc:
             # Give the model actionable schema feedback so it can repair a malformed
