@@ -55,6 +55,20 @@ def _has_full_document_retrieval(trace: list[TraceEvent]) -> bool:
     )
 
 
+def _retrieved_document_ids(trace: list[TraceEvent]) -> list[str]:
+    """Return IDs for full documents successfully retrieved in this run."""
+    return list(dict.fromkeys(
+        str(event.result["id"])
+        for event in trace
+        if event.event_type == "tool_result"
+        and event.tool_name == "get_document"
+        and isinstance(event.result, dict)
+        and str(event.result.get("id", "")).startswith("DOC-")
+        and isinstance(event.result.get("content"), str)
+        and event.result["content"].strip()
+    ))
+
+
 def _num_predict() -> int:
     raw = os.getenv("OLLAMA_NUM_PREDICT", "2048")
     try:
@@ -109,6 +123,7 @@ def run_ollama_agent(
     output_tokens = 0
     calls_used = 0
     retrieval_reminders = 0
+    citation_reminders = 0
     agent_type = case.get("agent_type", "")
     case_id = str(case.get("id", "unknown"))
     endpoint = f"{_native_api_root(client)}/api/chat"
@@ -203,6 +218,54 @@ def run_ollama_agent(
                         ),
                     })
                     continue
+
+                if agent_type == "knowledge":
+                    required_ids = [
+                        str(doc_id)
+                        for doc_id in case.get("expected", {}).get("required_doc_ids", [])
+                    ] or _retrieved_document_ids(trace)
+                    missing_citations = [
+                        doc_id for doc_id in required_ids
+                        if f"[{doc_id}]".casefold() not in final_output.casefold()
+                    ]
+                    if missing_citations:
+                        if citation_reminders >= 1:
+                            raise RuntimeError(
+                                "Knowledge Agent returned an answer without the required "
+                                f"source citation(s): {', '.join(missing_citations)}."
+                            )
+                        citation_reminders += 1
+                        trace.append(TraceEvent(
+                            index=len(trace) + 1,
+                            event_type="citation_gate",
+                            message=(
+                                "Final answer paused: required source citation(s) are missing: "
+                                + ", ".join(missing_citations)
+                            ),
+                        ))
+                        source_content = [
+                            event.result.get("content", "")
+                            for event in trace
+                            if event.event_type == "tool_result"
+                            and event.tool_name == "get_document"
+                            and isinstance(event.result, dict)
+                            and event.result.get("id") in missing_citations
+                        ]
+                        messages.append({
+                            "role": "user",
+                            "content": (
+                                "Your answer is incomplete because it omitted the required "
+                                "source citation(s): "
+                                + ", ".join(f"[{doc_id}]" for doc_id in missing_citations)
+                                + ". Re-read the full source content already retrieved and "
+                                "return a concise corrected answer with those exact citation "
+                                "markers. Preserve the source's meaning precisely: keep the "
+                                "same actor, action, object, and timing; do not change what "
+                                "a deadline applies to. Do not include analysis or planning.\n"
+                                + "\n".join(source_content)
+                            ),
+                        })
+                        continue
 
                 # Qwen3 may include a visible closing think marker in content on some
                 # Ollama/model versions. Keep only the answer after that marker.
