@@ -85,3 +85,21 @@ def test_results_csv_includes_metric_columns_from_all_agent_types(tmp_path):
     assert exported[0]["state_match_rate"] == ""
     assert exported[0]["required_term_coverage"] == "1.0"
     assert exported[1]["required_term_coverage"] == ""
+
+
+
+def test_workflow_comparison_requires_explicit_sandbox_write_approval(tmp_path):
+    import pytest
+
+    from workflowbench.live_compare import run_comparison
+
+    with pytest.raises(ValueError, match="allow_workflow_writes=True"):
+        run_comparison(
+            model="local-test-model",
+            agent="both",
+            split="development",
+            cases_per_agent=2,
+            repetitions=1,
+            output_dir=tmp_path,
+            provider="ollama",
+        )
