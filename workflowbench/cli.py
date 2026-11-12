@@ -13,6 +13,33 @@ from .experiments import run_cases
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 
+def _select_benchmark_cases(
+    agent: str,
+    split: str,
+    limit: int,
+    case_id: str | None = None,
+) -> list[dict]:
+    """Select a bounded batch or one explicitly named benchmark case."""
+    available = load_dataset()
+    if case_id:
+        matches = [
+            case for case in available
+            if case["id"].casefold() == case_id.casefold()
+            and case["agent_type"] == agent
+            and case["split"] == split
+        ]
+        if not matches:
+            raise ValueError(
+                f"Case {case_id!r} was not found for agent={agent!r}, split={split!r}."
+            )
+        return matches
+    selected = [
+        case for case in available
+        if case["agent_type"] == agent and case["split"] == split
+    ]
+    return selected[:max(1, min(limit, 12))]
+
+
 def main():
     load_dotenv()
     parser = argparse.ArgumentParser(description="Run WorkflowBench")
@@ -44,6 +71,7 @@ def main():
         "--split", choices=["development", "evaluation"], default="development"
     )
     bench.add_argument("--limit", type=int, default=2)
+    bench.add_argument("--case-id", default=None, help="Run one exact benchmark case, e.g. K02.")
     bench.add_argument("--allow-writes", action="store_true")
 
     compare = sub.add_parser(
@@ -152,10 +180,15 @@ def main():
             parser.error("Set OPENAI_API_KEY in .env before an OpenAI API run.")
         client = OpenAI(api_key=api_key)
 
-    cases = [
-        case for case in load_dataset()
-        if case["agent_type"] == args.agent and case["split"] == args.split
-    ][:max(1, min(args.limit, 12))]
+    try:
+        cases = _select_benchmark_cases(
+            agent=args.agent,
+            split=args.split,
+            limit=args.limit,
+            case_id=args.case_id,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     results = run_cases(
         cases,
         client,
