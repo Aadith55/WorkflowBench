@@ -119,7 +119,7 @@ def run_gemini_agent(
             for call in function_calls:
                 function = getattr(call, "function", None)
                 if function is None:
-                    raise ValueError("Gemini returned a malformed function call.")
+                    raise ValueError("Model returned a malformed function call.")
                 assistant_calls.append({
                     "id": getattr(call, "id", None),
                     "type": "function",
@@ -164,7 +164,7 @@ def run_gemini_agent(
                 trace.append(TraceEvent(
                     index=len(trace) + 1,
                     event_type="tool_call",
-                    message=f"Gemini requested {name}.",
+                    message=f"Model requested {name}.",
                     tool_name=name,
                     arguments=arguments,
                 ))
