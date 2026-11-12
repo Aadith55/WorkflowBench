@@ -214,7 +214,7 @@ def test_ollama_runner_blocks_knowledge_final_until_full_document_is_retrieved(m
     assert any(event.event_type == "retrieval_gate" for event in run.trace)
     assert any(
         message.get("role") == "user"
-        and "Call get_document" in message.get("content", "")
+        and "call get_document" in message.get("content", "").lower()
         for message in sent_payloads[2]["messages"]
     )
     assert run.final_output.startswith("The requester's manager")
@@ -308,3 +308,125 @@ def test_ollama_runner_requests_citation_before_accepting_knowledge_answer(monke
     assert "[DOC-001]" in correction
     assert "do not change what a deadline applies to" in correction
     assert "within one business day after approval" in correction
+
+
+
+def _ollama_payload(tool_name=None, arguments=None, content=""):
+    message = {"role": "assistant", "content": content}
+    if tool_name:
+        message["tool_calls"] = [{
+            "function": {"name": tool_name, "arguments": arguments or {}},
+        }]
+    return {
+        "message": message,
+        "done": True,
+        "done_reason": "stop",
+        "prompt_eval_count": 12,
+        "eval_count": 8,
+    }
+
+
+def test_ollama_rejects_document_id_not_returned_by_search_and_accepts_exact_hit(monkeypatch):
+    responses = [
+        _ollama_payload(
+            "search_documents",
+            {"query": "Severity 1 incident", "limit": 5},
+        ),
+        _ollama_payload("get_document", {"document_id": "DOC-001"}),
+        _ollama_payload("get_document", {"document_id": "DOC-002"}),
+        _ollama_payload(
+            content=(
+                "The on-call responder must notify the incident commander within "
+                "15 minutes of confirmation. Status updates must be recorded every "
+                "30 minutes. [DOC-002]"
+            )
+        ),
+    ]
+    sent_payloads = []
+
+    def fake_urlopen(request, timeout):
+        sent_payloads.append(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    case = {
+        "id": "K-wrong-id",
+        "agent_type": "knowledge",
+        "task": (
+            "For a confirmed Severity 1 incident, what is the initial notification "
+            "deadline and how often must status updates be recorded?"
+        ),
+        "expected": {"required_doc_ids": ["DOC-002"]},
+    }
+
+    run = run_ollama_agent(case, Sandbox(), client, "qwen3:1.7b", strategy="verified")
+
+    assert run.status == "completed"
+    assert run.final_output.endswith("[DOC-002]")
+    failed_reads = [
+        event for event in run.trace
+        if event.event_type == "tool_error" and event.tool_name == "get_document"
+    ]
+    assert len(failed_reads) == 1
+    assert failed_reads[0].result["available_document_ids"] == ["DOC-002"]
+    successful_reads = [
+        event for event in run.trace
+        if event.event_type == "tool_result" and event.tool_name == "get_document"
+    ]
+    assert [event.result["id"] for event in successful_reads] == ["DOC-002"]
+
+    system_prompt = sent_payloads[0]["messages"][0]["content"]
+    schema_text = json.dumps(sent_payloads[0]["tools"])
+    assert "DOC-001" not in system_prompt
+    assert "DOC-001" not in schema_text
+    assert "Do not assume a default ID" in system_prompt
+
+
+def test_ollama_citation_gate_uses_retrieved_ids_not_benchmark_answer_key(monkeypatch):
+    responses = [
+        _ollama_payload(
+            "search_documents",
+            {"query": "Severity 1 incident", "limit": 5},
+        ),
+        _ollama_payload("get_document", {"document_id": "DOC-002"}),
+        _ollama_payload(
+            content=(
+                "Notify the incident commander within 15 minutes and record status "
+                "updates every 30 minutes."
+            )
+        ),
+        _ollama_payload(
+            content=(
+                "Notify the incident commander within 15 minutes and record status "
+                "updates every 30 minutes. [DOC-002]"
+            )
+        ),
+    ]
+    sent_payloads = []
+
+    def fake_urlopen(request, timeout):
+        sent_payloads.append(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    # Deliberately inconsistent oracle metadata: the runner must not expose it.
+    case = {
+        "id": "K-no-oracle-leak",
+        "agent_type": "knowledge",
+        "task": "For a confirmed Severity 1 incident, state the notification and update timings.",
+        "expected": {"required_doc_ids": ["DOC-001"]},
+    }
+
+    run = run_ollama_agent(case, Sandbox(), client, "qwen3:1.7b", strategy="baseline")
+
+    assert run.status == "completed"
+    assert run.final_output.endswith("[DOC-002]")
+    gate = next(event for event in run.trace if event.event_type == "citation_gate")
+    assert "DOC-002" in gate.message
+    assert "DOC-001" not in gate.message
+    correction = sent_payloads[3]["messages"][-1]["content"]
+    assert "[DOC-002]" in correction
+    assert "[DOC-001]" not in correction
+    assert "15 minutes" in correction
