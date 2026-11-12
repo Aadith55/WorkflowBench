@@ -45,7 +45,7 @@ We configure **Qwen3:4B** as the starter model. Its Ollama library entry lists t
    ollama list
    ```
 
-4. Make sure the Ollama app/server is running. The local OpenAI-compatible endpoint defaults to `http://localhost:11434/v1/`.
+4. Make sure the Ollama app/server is running. WorkflowBench connects to Ollama's native `http://localhost:11434/api/chat` endpoint. Its configured `OLLAMA_BASE_URL` is used to resolve the local host.
 5. Pull the latest WorkflowBench code and install its dependencies:
 
    ```powershell
@@ -67,14 +67,16 @@ We configure **Qwen3:4B** as the starter model. Its Ollama library entry lists t
 
 This runs eight model trials across the four development scenarios. Each trial can involve multiple local model requests as tools are called. Output files are saved under `artifacts/live-experiment/`.
 
-No `OLLAMA_API_KEY` is needed. The client uses a placeholder key because the OpenAI Python client requires a non-empty value; Ollama's local server ignores it. WorkflowBench does not call a cloud API when the provider is `ollama`.
+No `OLLAMA_API_KEY` is needed. The Ollama adapter calls the native local `/api/chat` endpoint, sets `think: false` to avoid spending the output budget on Qwen3 reasoning tokens, and defaults to `OLLAMA_NUM_PREDICT=2048` (configurable from 256 to 8192). WorkflowBench does not call a cloud API when the provider is `ollama`.
 
 If your computer cannot run Qwen3:4B comfortably, we can select a smaller model after checking its tool-calling support. Smaller models may make more tool-selection and argument errors, which is useful to measure but should be reported honestly.
 
 Official references:
 
 - [Ollama Windows download](https://ollama.com/download/windows)
-- [Ollama OpenAI compatibility](https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx)
+- [Ollama native chat API](https://github.com/ollama/ollama/blob/main/docs/api.md)
+- [Ollama tool calling](https://github.com/ollama/ollama/blob/main/docs/capabilities/tool-calling.mdx)
+- [Ollama thinking controls](https://github.com/ollama/ollama/blob/main/docs/capabilities/thinking.mdx)
 - [Qwen3:4B model and tool support](https://ollama.com/library/qwen3:4b)
 
 ## 3. Gemini API free tier
