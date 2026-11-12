@@ -18,7 +18,7 @@
 
 ## Verification
 
-- GitHub Actions passed on the current main-branch code at commit `0c5e86b` with **40 passing tests in 0.86 seconds**.
+- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 40 tests**.
 - The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation and abstention grading when retrieved documents contain unrelated limitation statements.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
@@ -51,7 +51,6 @@
 - No successful live Gemini or Ollama model run has yet been performed.
 - Ollama has not been launched on the user's computer; it requires installing Ollama and downloading the selected model locally.
 - Streamlit has not been manually launched in the user's environment.
-- The current v0.2 changes have not yet been confirmed by a new green CI result in this status record.
 - No model-performance improvement, cost saving or market opportunity has been measured.
 - The benchmark is a small synthetic pilot and is not representative of production traffic.
 
