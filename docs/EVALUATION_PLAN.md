@@ -7,7 +7,7 @@ The starter benchmark contains 24 original synthetic scenarios: 12 Knowledge Age
 - **Baseline:** task-focused instructions with the shared approved tool registry.
 - **Verified:** adds explicit source retrieval and post-action verification instructions.
 
-Keep model ID, dataset version, tools and other settings fixed. Run matched case IDs under both strategies. Begin with development cases, inspect traces and grader errors, then use held-out cases once the approach is fixed.
+Keep model ID, dataset version, tools and other settings fixed. Run matched case IDs under both strategies. Workflow-track comparisons require explicit approval for writes to the disposable sandbox. Begin with development cases, inspect traces and grader errors, then use held-out cases once the approach is fixed.
 
 ## Metrics
 ### Knowledge tasks
