@@ -114,12 +114,6 @@ def simulate_case(case: dict[str, Any]) -> tuple[AgentRun, Sandbox, dict[str, An
                 raise RuntimeError(f"Could not retrieve full document {document_id}.")
 
             final_output = f'{retrieved["content"]} [{document_id}]'
-            if case["id"] == "K01":
-                final_output += (
-                    " In brief, manager approval is required, and standard access "
-                    "requests should be completed within one business day after approval. "
-                    "[DOC-001]"
-                )
             if expected.get("must_abstain"):
                 final_output += (
                     " The exact monetary penalty is not specified in the source."
