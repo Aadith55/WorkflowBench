@@ -15,7 +15,7 @@ Keep model ID, dataset version, tools and other settings fixed. Run matched case
 - Required document retrieval recall.
 - Citation coverage.
 - Correct abstention on missing information.
-- Tool precision, recall and F1.
+- Tool-call precision, recall and F1 (repeated calls count as additional tool calls).
 
 ### Workflow tasks
 - Task success from actual sandbox postconditions.
@@ -33,7 +33,7 @@ Keep model ID, dataset version, tools and other settings fixed. Run matched case
 Report success rate with a 95% Wilson score interval. For baseline versus verified on matched case IDs, the project includes an exact two-sided McNemar/binomial calculation. With only a few scenarios, treat p-values as exploratory and show raw paired outcomes.
 
 ## Grader limitations
-Keyword checks may penalise correct paraphrases. Citation presence does not prove entailment. State checks do not fully assess optimality of intermediate steps. Tool F1 uses distinct tool names rather than argument-level correctness. Human review is needed for nuanced quality.
+Keyword checks may penalise correct paraphrases. Citation presence does not prove entailment. State checks do not fully assess optimality of intermediate steps. Tool F1 counts tool-call occurrences, but does not assess argument-level correctness. Human review is needed for nuanced quality.
 
 ## Failure taxonomy
 1. Retrieval failure.
