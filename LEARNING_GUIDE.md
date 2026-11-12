@@ -25,9 +25,29 @@ This guide is designed for someone who knows basic Python but is still learning 
 - **Held-out set:** cases kept out of prompt tuning to limit overfitting.
 - **Human approval:** a person explicitly permits a consequential operation before the application executes it.
 
-## Live API learning path
+## Live model learning path (no API billing)
 
-The app works in scripted mode without credentials. For a live run, set `OPENAI_API_KEY` in `.env`, use one development case first, and inspect every trace event. Never commit your key.
+Use Ollama for the first real model run. It runs on your computer and does not need an API key or hosted inference credits.
+
+1. Install [Ollama for Windows](https://ollama.com/download/windows).
+2. Check available RAM before selecting the model. WorkflowBench is configured with `qwen3:4b` as its starter model.
+3. In PowerShell, run `ollama pull qwen3:4b`, then `ollama list` to confirm it is installed.
+4. Keep Ollama running and start the dashboard with `streamlit run app.py`.
+5. Select **Live model run** and **Ollama (local, no API key)**. Start with one development case and inspect the complete trace.
+
+You can also run one case from the terminal:
+
+```powershell
+python -m workflowbench.cli benchmark --provider ollama --agent knowledge --strategy baseline --split development --limit 1
+```
+
+Then run a small matched pilot:
+
+```powershell
+python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
+```
+
+The Gemini adapter is optional and depends on project free-tier eligibility and quota. OpenAI API calls may require paid credits, so they are not part of the no-cost path. Never commit API keys.
 
 ## Learning honesty
 
