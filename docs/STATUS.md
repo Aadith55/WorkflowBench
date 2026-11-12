@@ -48,10 +48,10 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B has now passed Knowledge development case K01 in a live baseline run after the retrieval and citation gates were added. The immediately preceding 1.7B run retrieved the full source and covered the required facts but omitted `[DOC-001]`; the post-gate rerun completed with `task_success=1`.
+- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B has now passed all four Knowledge development cases (K01–K04) in separate live baseline runs on the same model and local setup. This is a four-case pilot result, not a general performance claim.
 - Earlier Qwen3:4B baseline runs passed K03 and K04. Qwen3:4B K02 completed with the correct answer and source citation but made one malformed redundant `get_document` call before recovering, so the strict tool-precision grader marked it failed. Qwen3:4B K01 previously hit the output cap or timed out under CPU-only execution.
 - The `get_document` schema and Knowledge instructions explicitly require the exact `document_id` field. Tool validation errors return actionable missing/extra-field details. The Ollama runner pauses Knowledge answers that omit full-document retrieval or required citations and asks for source-faithful corrections; automated tests cover both gates.
-- A complete, comparable Qwen3:1.7B development baseline batch has not yet been run. No full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
+- The next experiment is to run the same four Knowledge development cases with the verified strategy on Qwen3:1.7B, keeping the model, provider and dataset split fixed. No full held-out evaluation or baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
