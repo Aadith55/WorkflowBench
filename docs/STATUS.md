@@ -48,9 +48,10 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. Qwen3:4B passed K01 once but later hit the output cap or timed out under CPU-only execution. Qwen3:1.7B completed K01 in 16.7 seconds with full-document retrieval and required terms but omitted `[DOC-001]`; it also paraphrased the timing clause imprecisely. K02 completed with correct answer and source citation but made one malformed redundant `get_document` call before recovering. K03 and K04 passed in the earlier Qwen3:4B development batch.
-- The `get_document` schema and Knowledge instructions explicitly require the exact `document_id` field. Tool validation errors return actionable missing/extra-field details. The Ollama runner also pauses Knowledge answers that omit required citations and asks for a source-faithful correction; automated tests cover both gates.
-- The citation gate and source-faithful correction were added after the user's Qwen3:1.7B K01 run; a local rerun is needed to confirm the model follows the citation correction. No full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
+- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B has now passed Knowledge development case K01 in a live baseline run after the retrieval and citation gates were added. The immediately preceding 1.7B run retrieved the full source and covered the required facts but omitted `[DOC-001]`; the post-gate rerun completed with `task_success=1`.
+- Earlier Qwen3:4B baseline runs passed K03 and K04. Qwen3:4B K02 completed with the correct answer and source citation but made one malformed redundant `get_document` call before recovering, so the strict tool-precision grader marked it failed. Qwen3:4B K01 previously hit the output cap or timed out under CPU-only execution.
+- The `get_document` schema and Knowledge instructions explicitly require the exact `document_id` field. Tool validation errors return actionable missing/extra-field details. The Ollama runner pauses Knowledge answers that omit full-document retrieval or required citations and asks for source-faithful corrections; automated tests cover both gates.
+- A complete, comparable Qwen3:1.7B development baseline batch has not yet been run. No full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
