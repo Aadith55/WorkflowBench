@@ -1,11 +1,78 @@
-"""Local Ollama adapter for the shared OpenAI-compatible chat runner."""
+"""Native local Ollama adapter with bounded, non-thinking Qwen tool calls."""
 from __future__ import annotations
 
+import json
+import os
+import time
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit, urlunsplit
+from urllib.request import Request, urlopen
 
-from .gemini_agent import run_gemini_agent
-from .models import AgentRun
-from .tools import Sandbox
+from .agents import AGENT_INSTRUCTIONS, BASE_INSTRUCTIONS, VERIFIED_ADDENDUM
+from .models import AgentRun, TraceEvent
+from .tools import Sandbox, tool_schemas
+
+
+def _native_api_root(client: Any) -> str:
+    """Resolve the native Ollama host from the configured OpenAI-style base URL."""
+    configured = getattr(client, "base_url", None)
+    raw = str(configured or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1/"))
+    parsed = urlsplit(raw)
+    path = parsed.path.rstrip("/")
+    for suffix in ("/v1/chat/completions", "/v1"):
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", "")).rstrip("/")
+
+
+def _chat_tools(agent_type: str) -> list[dict[str, Any]]:
+    """Convert the shared Responses-style schemas to Ollama's native tool format."""
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": schema["name"],
+                "description": schema["description"],
+                "parameters": schema["parameters"],
+            },
+        }
+        for schema in tool_schemas(agent_type)
+    ]
+
+
+def _num_predict() -> int:
+    raw = os.getenv("OLLAMA_NUM_PREDICT", "2048")
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError("OLLAMA_NUM_PREDICT must be an integer.") from exc
+    if not 256 <= value <= 8192:
+        raise ValueError("OLLAMA_NUM_PREDICT must be between 256 and 8192.")
+    return value
+
+
+def _post_chat(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    request = Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=300) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")[:1000]
+        raise RuntimeError(f"Ollama HTTP {exc.code}: {details or exc.reason}") from exc
+    except URLError as exc:
+        raise RuntimeError(
+            f"Could not reach the local Ollama server at {url}: {exc.reason}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("Ollama returned a malformed chat response.")
+    return data
 
 
 def run_ollama_agent(
@@ -17,18 +84,150 @@ def run_ollama_agent(
     allow_writes: bool = False,
     max_tool_calls: int = 8,
 ) -> AgentRun:
-    """Run a scenario against a local Ollama server without cloud API credentials.
+    """Run one case against Ollama's native /api/chat endpoint.
 
-    Ollama's local OpenAI-compatible endpoint supports tools but does not currently
-    document the OpenAI tool_choice request field, so the shared runner omits it.
+    Qwen3 thinking is explicitly disabled for this tool-use benchmark. This keeps
+    reasoning tokens from consuming the response budget before a function call or
+    final answer is returned. All tool execution still passes through Sandbox.call.
     """
-    return run_gemini_agent(
-        case=case,
-        sandbox=sandbox,
-        client=client,
-        model=model,
-        strategy=strategy,
-        allow_writes=allow_writes,
-        max_tool_calls=max_tool_calls,
-        tool_choice=None,
-    )
+    started = time.perf_counter()
+    trace: list[TraceEvent] = []
+    input_tokens = 0
+    output_tokens = 0
+    calls_used = 0
+    agent_type = case.get("agent_type", "")
+    case_id = str(case.get("id", "unknown"))
+    endpoint = f"{_native_api_root(client)}/api/chat"
+
+    try:
+        if agent_type not in AGENT_INSTRUCTIONS:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+        if strategy not in {"baseline", "verified"}:
+            raise ValueError(f"Unknown strategy: {strategy}")
+        if max_tool_calls < 1:
+            raise ValueError("max_tool_calls must be at least 1")
+
+        instructions = BASE_INSTRUCTIONS + AGENT_INSTRUCTIONS[agent_type]
+        if strategy == "verified":
+            instructions += VERIFIED_ADDENDUM
+
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": case["task"]},
+        ]
+        tools = _chat_tools(agent_type)
+        num_predict = _num_predict()
+
+        while True:
+            response = _post_chat(
+                endpoint,
+                {
+                    "model": model,
+                    "messages": messages,
+                    "tools": tools,
+                    "stream": False,
+                    "think": False,
+                    "options": {"num_predict": num_predict},
+                },
+            )
+            input_tokens += int(response.get("prompt_eval_count") or 0)
+            output_tokens += int(response.get("eval_count") or 0)
+
+            if response.get("done_reason") == "length":
+                raise RuntimeError(
+                    f"Ollama response reached the {num_predict}-token output limit. "
+                    "Increase OLLAMA_NUM_PREDICT or inspect the model trace."
+                )
+
+            message = response.get("message")
+            if not isinstance(message, dict):
+                raise RuntimeError("Ollama returned no assistant message.")
+            function_calls = message.get("tool_calls") or []
+            assistant_message = {
+                "role": "assistant",
+                "content": str(message.get("content") or ""),
+            }
+            if function_calls:
+                assistant_message["tool_calls"] = function_calls
+            messages.append(assistant_message)
+
+            if not function_calls:
+                final_output = assistant_message["content"].strip()
+                trace.append(TraceEvent(
+                    index=len(trace) + 1,
+                    event_type="final",
+                    message="Ollama returned its final response.",
+                    result=final_output,
+                ))
+                run = AgentRun(
+                    case_id=case_id,
+                    agent_type=agent_type,
+                    strategy=strategy,
+                    status="completed" if final_output else "empty_output",
+                    final_output=final_output,
+                    trace=trace,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+                break
+
+            for call in function_calls:
+                calls_used += 1
+                if calls_used > max_tool_calls:
+                    raise RuntimeError(f"Tool-call limit ({max_tool_calls}) reached.")
+
+                function = call.get("function") if isinstance(call, dict) else None
+                if not isinstance(function, dict):
+                    raise ValueError("Ollama returned a malformed function call.")
+                name = str(function.get("name") or "")
+                arguments = function.get("arguments")
+                if not isinstance(arguments, dict):
+                    raise ValueError(f"Tool '{name}' arguments must be a JSON object.")
+
+                call_started = time.perf_counter()
+                result, event_type = sandbox.call(
+                    name, arguments, agent_type, allow_writes=allow_writes
+                )
+                duration_ms = (time.perf_counter() - call_started) * 1000
+                trace.append(TraceEvent(
+                    index=len(trace) + 1,
+                    event_type="tool_call",
+                    message=f"Model requested {name}.",
+                    tool_name=name,
+                    arguments=arguments,
+                ))
+                trace.append(TraceEvent(
+                    index=len(trace) + 1,
+                    event_type=event_type,
+                    message=f"{name} returned {event_type.replace('_', ' ')}.",
+                    tool_name=name,
+                    result=result,
+                    duration_ms=round(duration_ms, 3),
+                ))
+                messages.append({
+                    "role": "tool",
+                    "tool_name": name,
+                    "content": json.dumps(result, ensure_ascii=False),
+                })
+
+        run.latency_ms = (time.perf_counter() - started) * 1000
+        return run
+
+    except Exception as exc:
+        latency_ms = (time.perf_counter() - started) * 1000
+        trace.append(TraceEvent(
+            index=len(trace) + 1,
+            event_type="run_error",
+            message=f"Model run stopped: {type(exc).__name__}: {exc}",
+        ))
+        return AgentRun(
+            case_id=case_id,
+            agent_type=agent_type,
+            strategy=strategy,
+            status="error",
+            trace=trace,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            error=f"{type(exc).__name__}: {exc}",
+        )
