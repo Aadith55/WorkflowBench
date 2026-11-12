@@ -117,7 +117,7 @@ If your project is eligible:
 5. Select **Gemini API (free tier)** in the dashboard, or use:
 
    ```bash
-   python -m workflowbench.cli compare --provider gemini --agent both --split development --cases-per-agent 2 --repetitions 1
+   python -m workflowbench.cli compare --provider gemini --agent both --split development --cases-per-agent 2 --repetitions 1 --allow-writes
    ```
 
 Free-tier input/output tokens are available only for eligible models and projects. Google may use free-tier content to improve its products. WorkflowBench sends synthetic example data only. Check current eligibility and quotas in AI Studio before running.
