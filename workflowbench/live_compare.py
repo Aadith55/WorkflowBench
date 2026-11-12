@@ -1,7 +1,6 @@
 """Run matched live baseline-versus-verified WorkflowBench experiments.
 
-Supports OpenAI Responses API and Gemini Chat Completions. Gemini API access may
-be available on a limited free tier; provider quotas and terms still apply.
+Supports local Ollama, Gemini Chat Completions and OpenAI Responses API providers.
 Keep the first run small and inspect saved traces before increasing its size.
 """
 from __future__ import annotations
@@ -209,7 +208,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run matched live baseline-versus-verified WorkflowBench experiments."
     )
-    parser.add_argument("--provider", choices=["openai", "gemini"], default="openai")
+    parser.add_argument("--provider", choices=["ollama", "gemini", "openai"], default="ollama")
     parser.add_argument("--model", default=None)
     parser.add_argument("--agent", choices=["knowledge", "workflow", "both"], default="both")
     parser.add_argument("--split", choices=["development", "evaluation"], default="development")
