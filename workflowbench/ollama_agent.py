@@ -262,10 +262,16 @@ def run_ollama_agent(
                     # Do not expose benchmark answer-key labels to the model. Enforce
                     # citations only for documents the model actually retrieved.
                     retrieved_ids = _retrieved_document_ids(trace)
-                    missing_citations = [
+                    cited_retrieved_ids = [
                         doc_id for doc_id in retrieved_ids
-                        if f"[{doc_id}]".casefold() not in final_output.casefold()
+                        if f"[{doc_id}]".casefold() in final_output.casefold()
                     ]
+                    # Ask for a citation correction only when the answer cites none
+                    # of its retrieved sources. The deterministic evaluator separately
+                    # checks whether the benchmark-required source IDs were cited.
+                    missing_citations = (
+                        retrieved_ids if retrieved_ids and not cited_retrieved_ids else []
+                    )
                     if missing_citations:
                         if citation_reminders < 1:
                             citation_reminders += 1
