@@ -18,11 +18,12 @@
 
 ## Verification
 
-- The last confirmed full GitHub Actions run before v0.2 completed with **34 passing tests**. That run predates the v0.2 regression tests.
-- Version v0.2 adds regression tests for source-grounded Knowledge labels, dataset-loader validation, repeated tool-call scoring and source-faithful fixture simulation.
-- The CI workflow compiles the application and test modules, then runs `pytest` on pushes and pull requests.
-- The offline simulation checks the full 24-case fixture pipeline. It records no model usage, no network requests and no API cost; its pass rate is pipeline validation only, not model performance evidence.
-- A fake Ollama client test verifies the Chat Completions tool-calling loop and ensures the unsupported `tool_choice` request field is omitted for local Ollama.
+- GitHub Actions passed on the current main-branch code at commit `0c5e86b` with **40 passing tests in 0.86 seconds**.
+- The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
+- The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation and abstention grading when retrieved documents contain unrelated limitation statements.
+- The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
+- The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama tool-calling adapters; these test request/response handling without making provider API calls.
 
 ## Provider options
 
