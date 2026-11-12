@@ -126,7 +126,7 @@ def run_ollama_agent(
             instructions += VERIFIED_ADDENDUM
         if agent_type == "knowledge":
             instructions += (
-                "\\nMandatory retrieval gate: do not answer from search snippets. "
+                "\nMandatory retrieval gate: do not answer from search snippets. "
                 "After search_documents returns relevant document IDs, call "
                 "get_document for the relevant source and use its full content. "
                 "If you have not successfully called get_document, you must call it "
