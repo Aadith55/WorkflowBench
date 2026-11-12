@@ -24,7 +24,7 @@
 - `tools.py`: schemas, argument models, sandbox and local tool implementations.
 - `agents.py`: OpenAI Responses API model/tool orchestration loop.
 - `gemini_agent.py`: OpenAI-compatible Chat Completions tool-calling loop used for Gemini.
-- `ollama_agent.py`: native Ollama `/api/chat` adapter; disables Qwen3 thinking, applies a configurable `num_predict` budget and records Ollama token counters.
+- `ollama_agent.py`: native Ollama `/api/chat` adapter; disables Qwen3 thinking, applies a configurable `num_predict` budget, requires full-document retrieval and citation of required source IDs before accepting a Knowledge answer, and records Ollama token counters.
 - `simulation.py`: offline fixture-driven pipeline rehearsal; not model evaluation.
 - `evaluator.py`: task-specific deterministic graders.
 - `analytics.py`: Wilson interval, summaries and paired exact McNemar calculation.
