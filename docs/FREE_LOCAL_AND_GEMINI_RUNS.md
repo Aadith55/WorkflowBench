@@ -62,7 +62,7 @@ We configure **Qwen3:4B** as the starter model. Its Ollama library entry lists t
 7. Run a matched baseline-versus-verified pilot:
 
    ```powershell
-   python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
+   python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1 --allow-writes
    ```
 
 This runs eight model trials across the four development scenarios. Each trial can involve multiple local model requests as tools are called. Output files are saved under `artifacts/live-experiment/`.
@@ -123,7 +123,8 @@ python -m workflowbench.cli compare \
   --agent both \
   --split development \
   --cases-per-agent 2 \
-  --repetitions 1
+  --repetitions 1 \
+  --allow-writes
 ```
 
 This selects two Knowledge cases and two Workflow cases and runs each under baseline and verified instructions: eight model runs. A model run can make multiple API requests because it may need several tool-call turns.
