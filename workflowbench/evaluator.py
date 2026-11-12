@@ -1,5 +1,6 @@
 """Deterministic graders for the v0.1 benchmark. No LLM-as-judge is used."""
 from __future__ import annotations
+from collections import Counter
 from typing import Any
 from .models import AgentRun
 from .tools import Sandbox
@@ -7,12 +8,31 @@ from .tools import Sandbox
 def _tool_names(run: AgentRun) -> list[str]:
     return [e.tool_name for e in run.trace if e.event_type == "tool_call" and e.tool_name]
 
-def _tool_scores(expected: list[str], actual: list[str]) -> dict[str,float]:
-    e, a = set(expected), set(actual); overlap = e & a
-    precision = len(overlap)/len(a) if a else (1.0 if not e else 0.0)
-    recall = len(overlap)/len(e) if e else 1.0
-    f1 = 2*precision*recall/(precision+recall) if precision+recall else 0.0
-    return {"tool_precision":round(precision,4),"tool_recall":round(recall,4),"tool_f1":round(f1,4)}
+def _tool_scores(expected: list[str], actual: list[str]) -> dict[str, float]:
+    """Score tool-call occurrences, so redundant repeated calls reduce precision."""
+    expected_counts = Counter(expected)
+    actual_counts = Counter(actual)
+    overlap = sum((expected_counts & actual_counts).values())
+    expected_total = sum(expected_counts.values())
+    actual_total = sum(actual_counts.values())
+
+    precision = (
+        overlap / actual_total
+        if actual_total
+        else (1.0 if expected_total == 0 else 0.0)
+    )
+    recall = overlap / expected_total if expected_total else 1.0
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if precision + recall
+        else 0.0
+    )
+    return {
+        "tool_precision": round(precision, 4),
+        "tool_recall": round(recall, 4),
+        "tool_f1": round(f1, 4),
+    }
+
 
 def _knowledge_metrics(case: dict[str,Any], run: AgentRun) -> dict[str,Any]:
     exp = case["expected"]; output = run.final_output.lower()
