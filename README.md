@@ -14,7 +14,7 @@ The first version is deliberately small and teachable. It avoids agent framework
 - The benchmark contains **24 original starter scenarios**: 12 knowledge tasks and 12 workflow tasks.
 - Eight scenarios are marked `development`; 16 are marked `evaluation`.
 - Results from this small benchmark are exploratory. Do not describe them as statistically conclusive or generalised to production agents.
-- Live runs can use the OpenAI Responses API or Google's Gemini API through its OpenAI-compatible Chat Completions endpoint.
+- Live runs can use a local Ollama model, Google's Gemini API through its OpenAI-compatible Chat Completions endpoint, or the OpenAI Responses API.
 - A fully offline **local simulation** runs all benchmark cases through the sandbox and deterministic grader without an LLM, network request or API key. It is a pipeline rehearsal, not model evaluation.
 - The local simulation is fixture-driven: it reads benchmark expected labels to stage known tool sequences. Its pass rate must not be presented as LLM performance.
 - The scripted walkthrough is a fixed teaching example. It is **not** an LLM run and its output must not be used as model performance evidence.
@@ -67,26 +67,61 @@ This runs all 24 labelled scenarios and writes:
 
 These are fixture-driven pipeline checks, not model results. The simulation intentionally does not write to the normal live-run SQLite history.
 
-## 2. Run a real model with Gemini's free tier
+## 2. Run a real model locally with Ollama (no API key)
 
-Google AI Studio currently offers a limited free tier for selected Gemini API models. India is in the supported-region list. Free-tier quotas are limited and can change; Google states that free-tier content may be used to improve its products. WorkflowBench uses synthetic example data, but do not send private or sensitive information.
+This is the preferred no-billing option. Ollama runs the model on your computer and exposes a local OpenAI-compatible endpoint. We use Qwen3:4B as the starter model; its Ollama library entry lists tool support and a 2.5 GB quantized download.
 
-1. Open [Google AI Studio API Keys](https://aistudio.google.com/app/apikey).
-2. Create an API key. Do not set up paid billing.
-3. Copy `.env.example` to `.env` and set `GEMINI_API_KEY`.
-4. Keep `GEMINI_MODEL=gemini-3.8-flash` initially.
-5. Restart Streamlit, select **Live model run**, choose **Gemini API (free tier)**, and select a single benchmark case.
-6. For workflow tasks, enable **Allow writes to the disposable local sandbox**. The app never connects to real systems or sends messages.
+1. Install [Ollama for Windows](https://ollama.com/download/windows).
+2. In PowerShell, download the model:
 
-Never commit `.env` or paste an API key into source code. The `.gitignore` excludes it.
+   ```powershell
+   ollama pull qwen3:4b
+   ```
 
-To run an actual matched baseline-versus-verified pilot on the Gemini free tier:
+3. Pull the latest WorkflowBench code and install dependencies:
 
-```bash
-python -m workflowbench.cli compare --provider gemini --agent both --split development --cases-per-agent 2 --repetitions 1
+   ```powershell
+   git pull origin main
+   pip install -e ".[dev]"
+   ```
+
+4. Keep Ollama running, then start the dashboard:
+
+   ```powershell
+   streamlit run app.py
+   ```
+
+5. Choose **Live model run** and select **Ollama (local, no API key)**.
+
+For a matched baseline-versus-verified experiment:
+
+```powershell
+python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
 ```
 
-This makes eight real model runs (four scenarios under two strategies) and saves a summary, CSV and traces under `artifacts/live-experiment/`. API quotas can still reject calls with a rate-limit response. Inspect current limits and usage in AI Studio before increasing the run size.
+This runs eight trials on the local model and writes a summary, CSV and traces under `artifacts/live-experiment/`. No API key, hosted inference account or paid API credits are required. The first model download requires an internet connection; inference requests after that go to the local server.
+
+Qwen3:4B is a small local model, so tool selection and task accuracy may be weaker than hosted models. Report the exact model and local setup in the research results.
+
+## 3. Optional Gemini API free tier
+
+Google AI Studio offers a free tier for selected Gemini API models, with quotas and eligibility restrictions. Some projects may show "free tier unavailable" and return 403. Do not attach billing to bypass this if the requirement is zero spend.
+
+If your project is eligible:
+
+1. Open [Google AI Studio API Keys](https://aistudio.google.com/app/apikey).
+2. Create an API key without enabling paid billing.
+3. Set `GEMINI_API_KEY` in your local `.env`.
+4. Keep `GEMINI_MODEL=gemini-3.8-flash`.
+5. Select **Gemini API (free tier)** in the dashboard, or use:
+
+   ```bash
+   python -m workflowbench.cli compare --provider gemini --agent both --split development --cases-per-agent 2 --repetitions 1
+   ```
+
+Free-tier input/output tokens are available only for eligible models and projects. Google may use free-tier content to improve its products. WorkflowBench sends synthetic example data only. Check current eligibility and quotas in AI Studio before running.
+
+See [docs/FREE_LOCAL_AND_GEMINI_RUNS.md](docs/FREE_LOCAL_AND_GEMINI_RUNS.md) for setup details and provider limitations.
 
 ## 3. Run OpenAI live experiments through GitHub Actions
 
