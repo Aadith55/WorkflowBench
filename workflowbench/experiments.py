@@ -25,8 +25,12 @@ def run_one_case(
         from .gemini_agent import run_gemini_agent
 
         runner = run_gemini_agent
+    elif provider == "ollama":
+        from .ollama_agent import run_ollama_agent
+
+        runner = run_ollama_agent
     else:
-        raise ValueError("provider must be 'openai' or 'gemini'.")
+        raise ValueError("provider must be 'openai', 'gemini' or 'ollama'.")
 
     run = runner(
         case, sandbox, client, model, strategy=strategy, allow_writes=allow_writes
