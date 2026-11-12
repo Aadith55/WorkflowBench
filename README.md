@@ -97,7 +97,7 @@ This is the preferred no-billing option. Ollama runs the model on your computer 
 For a matched baseline-versus-verified experiment:
 
 ```powershell
-python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
+python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1 --allow-writes
 ```
 
 This runs eight trials on the local model and writes a summary, CSV and traces under `artifacts/live-experiment/`. No API key, hosted inference account or paid API credits are required. The first model download requires an internet connection; inference requests after that go to the local server.
