@@ -14,7 +14,7 @@ This guide is designed for someone who knows basic Python but is still learning 
 
 ## Reading order
 
-`models.py` -> `dataset.py` -> `tools.py` -> `agents.py` -> `evaluator.py` -> `experiments.py` -> `app.py`.
+`models.py` -> `dataset.py` -> `tools.py` -> `agents.py` / `gemini_agent.py` / `ollama_agent.py` -> `evaluator.py` -> `experiments.py` -> `app.py`.
 
 ## Key concepts
 
