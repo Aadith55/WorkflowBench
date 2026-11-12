@@ -18,9 +18,11 @@ def test_all_scenarios_pass_fixture_pipeline_without_model_or_network_calls(tmp_
     assert summary["network_requests"] == 0
     assert summary["api_cost_usd"] == 0
     assert summary["configuration"]["scenario_count"] == 24
-    assert sum(
-        result["grader_fixture_passes"] for result in summary["by_agent"].values()
-    ) == 24
+    failed_cases = [
+        item["case_id"] for item in summary["cases"]
+        if not item["grader_fixture_passed"]
+    ]
+    assert not failed_cases, f"Fixture cases failed deterministic grading: {failed_cases}"
 
     assert (tmp_path / "simulation_summary.json").exists()
     assert (tmp_path / "simulation_traces.json").exists()
