@@ -17,10 +17,10 @@
 
 ## Verification
 
-- Previous full GitHub Actions run: **33 passed** before adding the Ollama adapter.
-- The CI suite includes full 24-case deterministic simulation, fake OpenAI/Gemini tool-calling tests, CSV schema coverage and sandbox safety checks.
-- A new fake Ollama client test verifies the tool-calling loop and ensures the unsupported `tool_choice` request field is omitted for local Ollama.
-- Latest CI status should be checked on the current `main` commit before starting a live local-model experiment.
+- Latest full GitHub Actions run: **34 passed in 0.62 seconds**.
+- The CI suite includes full 24-case deterministic simulation, fake OpenAI/Gemini/Ollama tool-calling tests, CSV schema coverage and sandbox safety checks.
+- The fake Ollama client test verifies the tool-calling loop and ensures the unsupported `tool_choice` request field is omitted for local Ollama.
+- Latest successful CI run: https://github.com/Aadith55/WorkflowBench/actions/runs/43142402475
 - The local simulation records no model usage, no network requests and no API cost. Its pass rate is pipeline validation only, not model performance evidence.
 
 ## Provider options
