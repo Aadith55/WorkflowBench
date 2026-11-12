@@ -14,7 +14,9 @@ The first version is deliberately small and teachable. It avoids agent framework
 - The benchmark contains **24 original starter scenarios**: 12 knowledge tasks and 12 workflow tasks.
 - Eight scenarios are marked `development`; 16 are marked `evaluation`.
 - Results from this small benchmark are exploratory. Do not describe them as statistically conclusive or generalised to production agents.
-- Live runs use the OpenAI Responses API with strict function schemas. The API key is optional until you choose **Live model run**.
+- Live runs can use the OpenAI Responses API or Google's Gemini API through its OpenAI-compatible Chat Completions endpoint.
+- A fully offline **local simulation** runs all benchmark cases through the sandbox and deterministic grader without an LLM, network request or API key. It is a pipeline rehearsal, not model evaluation.
+- The local simulation is fixture-driven: it reads benchmark expected labels to stage known tool sequences. Its pass rate must not be presented as LLM performance.
 - The scripted walkthrough is a fixed teaching example. It is **not** an LLM run and its output must not be used as model performance evidence.
 - Function-call arguments are checked locally with Pydantic before a tool runs. The model-facing strict JSON Schemas use the supported Structured Outputs subset; stricter length and calendar-date checks remain in the application.
 - All example data is synthetic. All writes happen in memory and are discarded after a run. `draft_message` never sends a message. There is no delete tool.
@@ -48,24 +50,51 @@ cp .env.example .env
 streamlit run app.py
 ```
 
-Open the local Streamlit URL printed in the terminal. Start with **Scripted walkthrough**. It does not require an API key.
+Open the local Streamlit URL printed in the terminal.
 
-## 2. Enable a live model run
+Start with **Scripted walkthrough** to see a fixed teaching example, or choose **Local simulation (no LLM)** to run a benchmark case through the local sandbox. Neither mode needs an API key.
 
-1. Open `.env`.
-2. Add your API key to `OPENAI_API_KEY`.
-3. Set `OPENAI_MODEL` to a model available to your API account.
-4. Restart Streamlit.
-5. Select **Live model run** and choose a single benchmark case.
-6. For workflow tasks, explicitly enable **Allow writes to the disposable local sandbox**. Without this approval, write tools are blocked.
+For a complete offline pipeline rehearsal, run:
+
+```bash
+python -m workflowbench.cli simulate --agent both --split all
+```
+
+This runs all 24 labelled scenarios and writes:
+- `simulation_summary.json`
+- `simulation_results.csv`
+- `simulation_traces.json`
+
+These are fixture-driven pipeline checks, not model results. The simulation intentionally does not write to the normal live-run SQLite history.
+
+## 2. Run a real model with Gemini's free tier
+
+Google AI Studio currently offers a limited free tier for selected Gemini API models. India is in the supported-region list. Free-tier quotas are limited and can change; Google states that free-tier content may be used to improve its products. WorkflowBench uses synthetic example data, but do not send private or sensitive information.
+
+1. Open [Google AI Studio API Keys](https://aistudio.google.com/app/apikey).
+2. Create an API key. Do not set up paid billing.
+3. Copy `.env.example` to `.env` and set `GEMINI_API_KEY`.
+4. Keep `GEMINI_MODEL=gemini-3.8-flash` initially.
+5. Restart Streamlit, select **Live model run**, choose **Gemini API (free tier)**, and select a single benchmark case.
+6. For workflow tasks, enable **Allow writes to the disposable local sandbox**. The app never connects to real systems or sends messages.
 
 Never commit `.env` or paste an API key into source code. The `.gitignore` excludes it.
 
-## 3. Run matched live experiments through GitHub Actions
+To run an actual matched baseline-versus-verified pilot on the Gemini free tier:
 
-Add `OPENAI_API_KEY` as a repository Actions secret, then open **Actions -> Live API experiment -> Run workflow**. The default pilot runs two development cases per agent under both baseline and verified strategies (eight model runs total). Results are uploaded as an artifact containing a summary, CSV metrics and full execution traces.
+```bash
+python -m workflowbench.cli compare --provider gemini --agent both --split development --cases-per-agent 2 --repetitions 1
+```
 
-See [docs/LIVE_EXPERIMENTS.md](docs/LIVE_EXPERIMENTS.md) for the one-time secret setup, cost controls and artifact details. Never put your API key in source code or a chat message.
+This makes eight real model runs (four scenarios under two strategies) and saves a summary, CSV and traces under `artifacts/live-experiment/`. API quotas can still reject calls with a rate-limit response. Inspect current limits and usage in AI Studio before increasing the run size.
+
+## 3. Run OpenAI live experiments through GitHub Actions
+
+The GitHub Actions workflow currently targets the OpenAI Responses API. Add `OPENAI_API_KEY` as a repository Actions secret, then open **Actions -> Live API experiment -> Run workflow**. The default pilot runs two development cases per agent under both baseline and verified strategies (eight model runs total). Results are uploaded as an artifact containing a summary, CSV metrics and full execution traces.
+
+The Gemini free-tier matched pilot is available through the local CLI command above; it does not require an OpenAI secret or paid OpenAI credits.
+
+See [docs/LIVE_EXPERIMENTS.md](docs/LIVE_EXPERIMENTS.md) for the OpenAI Actions workflow. Never put an API key in source code or a chat message.
 
 ## 4. Run tests
 
