@@ -49,7 +49,7 @@ def _knowledge_metrics(case: dict[str,Any], run: AgentRun) -> dict[str,Any]:
     retrieval = len(required & retrieved)/len(required) if required else 1.0
     citations = sum(x.lower() in output for x in required)/len(required) if required else 1.0
     must_abstain = bool(exp.get("must_abstain",False))
-    phrases = ("not specified","not stated","not provided","cannot determine","cannot verify")
+    phrases = ("not specified","not stated","not provided","does not specify","does not state","cannot determine","cannot verify")
     abstained = any(p in output for p in phrases)
     abstention_ok = abstained == must_abstain
     tools = _tool_scores(["search_documents","get_document"],_tool_names(run))
