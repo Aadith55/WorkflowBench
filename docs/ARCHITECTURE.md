@@ -1,7 +1,7 @@
 # Architecture
 
 ## Design goals
-- One readable tool-calling loop shared by two agents.
+- Two agent tracks share instructions, tool schemas, sandbox controls, trace structures and grading; provider-specific runners handle the model API loop.
 - Fixed local tool registry with strict argument validation.
 - Disposable in-memory sandbox for all example state changes.
 - Deterministic grading wherever possible.
@@ -19,11 +19,11 @@
 9. The separate `simulation.py` path performs no network calls. It uses expected benchmark labels to drive fixture tool calls and writes separate simulation artifacts, never live-model history.
 
 ## Main modules
-- `dataset.py`: JSONL loading and basic integrity checks.
+- `dataset.py`: versioned JSONL loading, required-field checks and duplicate-ID rejection.
 - `models.py`: AgentRun and TraceEvent data structures.
 - `tools.py`: schemas, argument models, sandbox and local tool implementations.
 - `agents.py`: OpenAI Responses API model/tool orchestration loop.
-- `gemini_agent.py`: shared OpenAI-compatible Chat Completions tool-calling loop, configured for Gemini by default.
+- `gemini_agent.py`: OpenAI-compatible Chat Completions tool-calling loop used for Gemini; the Ollama adapter reuses it while omitting `tool_choice`.
 - `ollama_agent.py`: local Ollama adapter; omits the unsupported `tool_choice` request parameter.
 - `simulation.py`: offline fixture-driven pipeline rehearsal; not model evaluation.
 - `evaluator.py`: task-specific deterministic graders.
