@@ -126,3 +126,34 @@ def test_invalid_get_document_arguments_return_actionable_validation_details():
     assert "query" in locations
     assert "limit" in locations
     assert sandbox.mutations == 0
+
+
+
+def test_get_document_only_accepts_ids_from_search_results_in_same_sandbox_run():
+    sandbox = Sandbox()
+
+    result, event = sandbox.call(
+        "get_document", {"document_id": "DOC-001"}, "knowledge"
+    )
+    assert event == "tool_error"
+    assert result["available_document_ids"] == []
+    assert "search_documents first" in result["instruction"]
+
+    search, search_event = sandbox.call(
+        "search_documents", {"query": "Severity 1 incident", "limit": 5}, "knowledge"
+    )
+    assert search_event == "tool_result"
+    assert [row["id"] for row in search["results"]] == ["DOC-002"]
+
+    wrong, wrong_event = sandbox.call(
+        "get_document", {"document_id": "DOC-001"}, "knowledge"
+    )
+    assert wrong_event == "tool_error"
+    assert wrong["available_document_ids"] == ["DOC-002"]
+
+    correct, correct_event = sandbox.call(
+        "get_document", {"document_id": "DOC-002"}, "knowledge"
+    )
+    assert correct_event == "tool_result"
+    assert correct["id"] == "DOC-002"
+    assert correct["content"]
