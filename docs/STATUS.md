@@ -43,7 +43,7 @@
 ### OpenAI API (paid quota may apply)
 
 - The earlier OpenAI live attempt did not produce valid benchmark results because the API project had no remaining credits; the CSV export bug has since been fixed.
-- The manual GitHub Actions workflow remains an optional OpenAI Responses API path. It is not required for local development or the zero-billing Ollama workflow.
+- The manual GitHub Actions workflow remains an optional OpenAI Responses API path and now has a separate Boolean approval input for workflow writes. It is not required for local development or the zero-billing Ollama workflow.
 
 ## Not yet verified
 
