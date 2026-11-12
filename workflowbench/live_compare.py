@@ -16,6 +16,7 @@ from typing import Any
 from openai import OpenAI
 
 from .agents import run_live_agent
+from .gemini_agent import run_gemini_agent
 from .analytics import mcnemar_exact, summarise_runs
 from .dataset import BENCHMARK_VERSION, load_dataset
 from .evaluator import evaluate_run
@@ -81,16 +82,31 @@ def run_comparison(
     cases_per_agent: int,
     repetitions: int,
     output_dir: str | Path,
+    provider: str = "openai",
 ) -> dict[str, Any]:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is not set. Add it as a GitHub Actions secret.")
+    if provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is not set.")
+        client = OpenAI(api_key=api_key)
+        runner = run_live_agent
+    elif provider == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set.")
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+        runner = run_gemini_agent
+    else:
+        raise ValueError("provider must be 'openai' or 'gemini'.")
     if cases_per_agent < 1 or cases_per_agent > 8:
         raise ValueError("cases_per_agent must be between 1 and 8.")
     if repetitions < 1 or repetitions > 3:
         raise ValueError("repetitions must be between 1 and 3.")
 
     cases = _selected_cases(agent, split, cases_per_agent)
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     results: list[dict[str, Any]] = []
     traces: list[dict[str, Any]] = []
 
@@ -102,7 +118,7 @@ def run_comparison(
             pair_id = f"{case['id']}:repeat-{repetition}"
             for strategy in order:
                 sandbox = Sandbox()
-                run = run_live_agent(
+                run = runner(
                     case,
                     sandbox,
                     client,
@@ -113,6 +129,7 @@ def run_comparison(
                 metrics = evaluate_run(case, run, sandbox)
                 metrics.update({
                     "model": model,
+                    "provider": provider,
                     "allow_writes": allow_writes,
                     "dataset_version": BENCHMARK_VERSION,
                     "repetition": repetition,
@@ -137,6 +154,7 @@ def run_comparison(
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "configuration": {
             "model": model,
+            "provider": provider,
             "agent": agent,
             "split": split,
             "cases_per_agent": cases_per_agent,
@@ -183,7 +201,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run matched live baseline-versus-verified WorkflowBench experiments."
     )
-    parser.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-6-luna"))
+    parser.add_argument("--provider", choices=["openai", "gemini"], default="openai")
+    parser.add_argument("--model", default=None)
     parser.add_argument("--agent", choices=["knowledge", "workflow", "both"], default="both")
     parser.add_argument("--split", choices=["development", "evaluation"], default="development")
     parser.add_argument("--cases-per-agent", type=int, default=2)
@@ -191,14 +210,20 @@ def main() -> int:
     parser.add_argument("--output-dir", default="artifacts/live-experiment")
     args = parser.parse_args()
 
+    model = args.model or (
+        os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        if args.provider == "gemini"
+        else os.getenv("OPENAI_MODEL", "gpt-6-luna")
+    )
     try:
         summary = run_comparison(
-            model=args.model,
+            model=model,
             agent=args.agent,
             split=args.split,
             cases_per_agent=args.cases_per_agent,
             repetitions=args.repetitions,
             output_dir=args.output_dir,
+            provider=args.provider,
         )
     except Exception as exc:
         parser.exit(2, f"Experiment failed: {type(exc).__name__}: {exc}\n")
