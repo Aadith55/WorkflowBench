@@ -18,12 +18,12 @@
 
 ## Verification
 
-- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 47 tests**.
+- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 52 tests**.
 - The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
-- The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation, abstention grading, explicit `get_document` argument guidance, actionable validation feedback and exact-case CLI selection.
+- The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation, abstention grading, explicit `get_document` argument guidance, per-run search provenance, citation-gate retry exhaustion, single-source citation behavior, actionable validation feedback and exact-case CLI selection.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
 - The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
-- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history, search-result provenance enforcement, retrieval and citation gates, and protection against exposing benchmark answer-key labels; these tests do not make provider API calls.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history, per-run search-result provenance, retrieval and citation gates, retention of completed answers after exhausted correction attempts, and protection against exposing benchmark answer-key labels; these tests do not make provider API calls.
 
 ## Provider options
 
@@ -48,10 +48,11 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B passed all four Knowledge development cases (K01–K04) in separate live baseline runs. This is a small pilot result, not a general performance claim.
-- The first Qwen3:1.7B verified pilot completed all four model responses but passed only two task-success grades. Trace review identified an adapter defect: the Ollama-specific Knowledge prompt hard-coded `DOC-001` even when search returned a different document. The retrieval gate also accepted any full document, not necessarily one returned by the current search. K03 and K04 therefore searched to `DOC-002` but retrieved `DOC-001`; those verified results are diagnostic only and must not be used for a baseline-versus-verified conclusion.
-- A fix is committed on `main`: the shared sandbox records IDs returned by `search_documents` and rejects `get_document` calls using IDs not returned during that sandbox run. The Ollama adapter requires a full document whose ID appears in its search trace, and citation correction uses actually retrieved IDs rather than benchmark answer-key labels. Regression tests cover the K03/K04 mismatch and ensure expected labels are not exposed to the model.
-- The four Knowledge development cases must be rerun with the patched local files under both strategies before drawing a comparison. No held-out evaluation or reliable baseline-versus-verified conclusion has been completed.
+- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B passed all four Knowledge development cases (K01–K04) in separate live baseline runs on the earlier local implementation.
+- A subsequent baseline/verified batch was run against an implementation that still had a hard-coded `DOC-001` prompt/gate defect and converted exhausted citation corrections into runtime errors. Those batch results are diagnostic only and must not be used as a valid baseline-versus-verified comparison.
+- The current `main` implementation removes fixed document-ID examples, enforces `get_document` provenance in the shared sandbox, requires a retrieved ID to have appeared in the current run's search results, removes benchmark answer-key leakage from runtime citation checks, and keeps final model responses completed after limited retrieval/citation correction attempts so the deterministic grader records the actual quality failures.
+- The citation reminder now triggers only when the answer cites none of the documents the model retrieved; the deterministic evaluator still checks benchmark-required document IDs. The CLI prints per-case term, retrieval, citation and tool precision/recall metrics for completed responses that fail grading.
+- GitHub CI currently passes 52 tests. A clean matched Qwen3:1.7B baseline-versus-verified development experiment must be rerun using the current local files. No held-out evaluation or reliable baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
