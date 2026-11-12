@@ -84,7 +84,13 @@ def run_comparison(
     repetitions: int,
     output_dir: str | Path,
     provider: str = "openai",
+    allow_workflow_writes: bool = False,
 ) -> dict[str, Any]:
+    if agent in {"workflow", "both"} and not allow_workflow_writes:
+        raise ValueError(
+            "Workflow comparisons perform sandbox writes. Pass "
+            "allow_workflow_writes=True to explicitly approve them."
+        )
     if provider == "openai":
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -118,7 +124,9 @@ def run_comparison(
     traces: list[dict[str, Any]] = []
 
     for case in cases:
-        allow_writes = case["agent_type"] == "workflow"
+        allow_writes = (
+            case["agent_type"] == "workflow" and allow_workflow_writes
+        )
         for repetition in range(1, repetitions + 1):
             # Alternate strategy order across repeats to reduce simple order effects.
             order = STRATEGIES if repetition % 2 else tuple(reversed(STRATEGIES))
@@ -169,7 +177,8 @@ def run_comparison(
             "strategies": list(STRATEGIES),
             "dataset_version": BENCHMARK_VERSION,
             "model_run_count": len(results),
-            "workflow_writes_enabled_only_in_disposable_sandbox": True,
+            "workflow_writes_enabled_only_in_disposable_sandbox": allow_workflow_writes,
+            "workflow_write_approval": allow_workflow_writes,
         },
         "agents": build_comparison_summary(results),
         "failed_runs": sum(
