@@ -102,7 +102,7 @@ See [docs/LIVE_EXPERIMENTS.md](docs/LIVE_EXPERIMENTS.md) for the OpenAI Actions 
 pytest
 ```
 
-Tests cover dataset loading, sandbox tool boundaries, deterministic grading, statistical helpers and the Responses API tool loop using a fake client. Tests do not make paid API calls.
+Tests cover dataset loading, sandbox tool boundaries, deterministic grading, statistical helpers, the Responses API loop and the Gemini Chat Completions loop using fake clients. Tests do not make paid API calls.
 
 ## 5. Command line
 
@@ -139,7 +139,9 @@ Start with small batches. Each live case makes one or more model requests and ma
 WorkflowBench/
 ├── app.py                         # Small Streamlit research dashboard
 ├── workflowbench/
-│   ├── agents.py                  # One readable Responses API tool-calling loop
+│   ├── agents.py                  # OpenAI Responses API tool-calling loop
+│   ├── gemini_agent.py            # Gemini Chat Completions tool-calling loop
+│   ├── simulation.py              # Offline fixture-driven pipeline rehearsal
 │   ├── analytics.py               # Wilson interval and paired McNemar test
 │   ├── dataset.py                 # JSONL benchmark loader
 │   ├── demo.py                    # Scripted walkthroughs (not model runs)
@@ -178,7 +180,7 @@ Knowledge tasks use deterministic checks for required terms, source retrieval, c
 
 The dashboard reports task success, tool precision/recall/F1, state-match rate or knowledge-specific metrics, latency and token usage. The exact McNemar helper compares matched case IDs across baseline and verified strategies. Confidence intervals and significance tests must be interpreted cautiously with this small starter set.
 
-See [`docs/EVALUATION_PLAN.md`](docs/EVALUATION_PLAN.md) before running experiments.
+See [`docs/EVALUATION_PLAN.md`](docs/EVALUATION_PLAN.md) before running experiments. For free local and Gemini runs, see [`docs/FREE_LOCAL_AND_GEMINI_RUNS.md`](docs/FREE_LOCAL_AND_GEMINI_RUNS.md).
 
 ## 9. Research references
 
@@ -197,7 +199,8 @@ These are methodological references. WorkflowBench's 24 scenarios are original s
 - The evaluator is intentionally deterministic and narrow. It does not judge nuanced writing quality.
 - The prototype stores experiment history locally in SQLite and has no authentication or multi-user support.
 - The baseline/verified comparison is an early prompt-and-verification experiment, not a complete factorial design.
-- Live experiment execution requires an OpenAI API key with API access and available billing/usage quota.
+- The GitHub Actions live workflow uses the OpenAI Responses API and requires an OpenAI API key with available quota/billing.
+- Gemini API access can use Google's free tier for eligible models, but quotas and data-use terms apply; verify them in AI Studio.
 - Token cost is unknown unless verified provider prices are configured.
 
 The next research iteration should add more human-reviewed cases, measure grader agreement, repeat runs for stochasticity, and document failure categories before making performance claims.
