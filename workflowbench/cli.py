@@ -58,6 +58,11 @@ def main():
     )
     compare.add_argument("--cases-per-agent", type=int, default=2)
     compare.add_argument("--repetitions", type=int, default=1)
+    compare.add_argument(
+        "--allow-writes",
+        action="store_true",
+        help="Explicitly approve workflow writes inside the disposable sandbox.",
+    )
     compare.add_argument("--output-dir", default="artifacts/live-experiment")
 
     args = parser.parse_args()
@@ -114,6 +119,7 @@ def main():
             repetitions=args.repetitions,
             output_dir=args.output_dir,
             provider=args.provider,
+            allow_workflow_writes=args.allow_writes,
         )
         print(
             f"Completed {summary['configuration']['model_run_count']} "
