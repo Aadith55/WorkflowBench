@@ -430,3 +430,86 @@ def test_ollama_citation_gate_uses_retrieved_ids_not_benchmark_answer_key(monkey
     assert "[DOC-002]" in correction
     assert "[DOC-001]" not in correction
     assert "15 minutes" in correction
+
+def test_ollama_keeps_completed_answer_when_citation_is_still_missing_after_retry(monkeypatch):
+    responses = [
+        _ollama_payload(
+            "search_documents",
+            {"query": "access standard", "limit": 5},
+        ),
+        _ollama_payload(
+            "get_document",
+            {"document_id": "DOC-001"},
+        ),
+        _ollama_payload(
+            content="A standard access request requires the requester's manager approval."
+        ),
+        _ollama_payload(
+            content="A standard access request requires the requester's manager approval."
+        ),
+    ]
+    sent_payloads = []
+
+    def fake_urlopen(request, timeout):
+        sent_payloads.append(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    case = {
+        "id": "K-missing-citation",
+        "agent_type": "knowledge",
+        "task": "Who approves a standard access request?",
+    }
+
+    run = run_ollama_agent(case, Sandbox(), client, "qwen3:1.7b")
+
+    assert run.status == "completed"
+    assert run.error is None
+    assert run.final_output == (
+        "A standard access request requires the requester's manager approval."
+    )
+    citation_events = [
+        event for event in run.trace if event.event_type == "citation_gate"
+    ]
+    assert len(citation_events) == 2
+    assert "retained for deterministic grading" in citation_events[-1].message
+
+
+def test_ollama_does_not_demand_citation_for_every_retrieved_document(monkeypatch):
+    responses = [
+        _ollama_payload(
+            "search_documents",
+            {"query": "access incident", "limit": 5},
+        ),
+        _ollama_payload(
+            "get_document",
+            {"document_id": "DOC-001"},
+        ),
+        _ollama_payload(
+            "get_document",
+            {"document_id": "DOC-002"},
+        ),
+        _ollama_payload(
+            content=(
+                "The requester's manager approves standard access requests. [DOC-001]"
+            )
+        ),
+    ]
+
+    def fake_urlopen(request, timeout):
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    case = {
+        "id": "K-cite-used-source",
+        "agent_type": "knowledge",
+        "task": "Who approves a standard access request?",
+    }
+
+    run = run_ollama_agent(case, Sandbox(), client, "qwen3:1.7b")
+
+    assert run.status == "completed"
+    assert "[DOC-001]" in run.final_output
+    assert not any(event.event_type == "citation_gate" for event in run.trace)
