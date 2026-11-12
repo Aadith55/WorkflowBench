@@ -73,3 +73,17 @@ def test_knowledge_success_requires_full_document_retrieval_tool():
     assert metrics["document_retrieval_recall"] == 1.0
     assert metrics["tool_recall"] < 1.0
     assert metrics["task_success"] == 0
+
+
+
+def test_redundant_repeated_tool_calls_reduce_tool_precision():
+    from workflowbench.evaluator import _tool_scores
+
+    scores = _tool_scores(
+        ["search_documents", "get_document"],
+        ["search_documents", "search_documents", "get_document"],
+    )
+
+    assert scores["tool_precision"] == 0.6667
+    assert scores["tool_recall"] == 1.0
+    assert scores["tool_f1"] == 0.8
