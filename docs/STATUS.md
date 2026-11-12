@@ -23,7 +23,7 @@
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation and abstention grading when retrieved documents contain unrelated limitation statements.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
 - The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
-- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama tool-calling adapters; these test request/response handling without making provider API calls.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling and tool-result history; these tests do not make provider API calls.
 
 ## Provider options
 
@@ -48,7 +48,7 @@
 
 ## Not yet verified
 
-- No successful live Gemini or Ollama model run has yet been performed.
+- No successful live Gemini or Ollama model run has yet been confirmed. The local Ollama adapter has been changed to native `/api/chat` with Qwen3 thinking disabled; a user-side rerun is still required.
 - Ollama has not been launched on the user's computer; it requires installing Ollama and downloading the selected model locally.
 - Streamlit has not been manually launched in the user's environment.
 - No model-performance improvement, cost saving or market opportunity has been measured.
