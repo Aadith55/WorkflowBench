@@ -44,7 +44,7 @@ python -m workflowbench.cli benchmark --provider ollama --agent knowledge --stra
 Then run a small matched pilot:
 
 ```powershell
-python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
+python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1 --allow-writes
 ```
 
 The Gemini adapter is optional and depends on project free-tier eligibility and quota. OpenAI API calls may require paid credits, so they are not part of the no-cost path. Never commit API keys.
