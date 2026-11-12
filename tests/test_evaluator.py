@@ -116,7 +116,7 @@ def test_unrelated_source_limitation_does_not_trigger_abstention():
             ),
             TraceEvent(3, "tool_call", "get", "get_document"),
             TraceEvent(4, "tool_result", "read", "get_document",
-                       result={"id": "DOC-004"}),
+                       result={"id": "DOC-004", "content": "Employees should submit reimbursement claims within 10 calendar days of the expense. An itemised receipt is required for each claim. The guide does not specify a monetary penalty for late submissions."}),
         ],
     )
 
