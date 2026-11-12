@@ -40,11 +40,18 @@ def _knowledge_metrics(case: dict[str,Any], run: AgentRun) -> dict[str,Any]:
     term_score = sum(terms.values())/len(terms) if terms else 1.0
     retrieved = set()
     for event in run.trace:
+        # A search hit is only a snippet. Count a source as retrieved only after
+        # the full-document tool returns its content successfully.
+        if event.event_type != "tool_result" or event.tool_name != "get_document":
+            continue
         result = event.result
-        if not isinstance(result,dict): continue
-        if str(result.get("id","")).startswith("DOC-"): retrieved.add(result["id"])
-        for item in result.get("results",[]):
-            if isinstance(item,dict) and str(item.get("id","")).startswith("DOC-"): retrieved.add(item["id"])
+        if (
+            isinstance(result, dict)
+            and str(result.get("id", "")).startswith("DOC-")
+            and isinstance(result.get("content"), str)
+            and result["content"].strip()
+        ):
+            retrieved.add(result["id"])
     required = set(exp.get("required_doc_ids",[]))
     retrieval = len(required & retrieved)/len(required) if required else 1.0
     citations = sum(x.lower() in output for x in required)/len(required) if required else 1.0
