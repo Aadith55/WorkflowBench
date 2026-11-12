@@ -57,14 +57,32 @@ with st.sidebar:
 
     api_key_input = ""
     model = ""
-    provider = "openai"
+    provider = "ollama"
     if run_mode == "Live model run":
         provider_label = st.selectbox(
             "Model provider",
-            ["Gemini API (free tier)", "OpenAI API"],
-            help="Gemini has a limited free tier. OpenAI API calls may require paid credits.",
+            [
+                "Ollama (local, no API key)",
+                "Gemini API (free tier)",
+                "OpenAI API",
+            ],
+            help=(
+                "Ollama runs on this computer and does not require an API key. "
+                "Gemini free-tier eligibility and quotas vary. OpenAI API calls may require paid credits."
+            ),
+            index=0,
         )
-        if provider_label == "Gemini API (free tier)":
+        if provider_label == "Ollama (local, no API key)":
+            provider = "ollama"
+            model = st.text_input(
+                "Local Ollama model",
+                value=os.getenv("OLLAMA_MODEL", "qwen3:4b"),
+            )
+            st.caption(
+                "Install Ollama and download the model first. Keep the Ollama server running. "
+                "Prompts and tool results are sent only to your local Ollama server."
+            )
+        elif provider_label == "Gemini API (free tier)":
             provider = "gemini"
             api_key_input = st.text_input(
                 "Gemini API key",
@@ -76,8 +94,9 @@ with st.sidebar:
                 value=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
             )
             st.caption(
-                "Free-tier quotas apply. Google may use free-tier API content to improve "
-                "its products. WorkflowBench sends only its synthetic example data."
+                "Free-tier access is not guaranteed for every project, and quotas apply. "
+                "Google may use free-tier API content to improve its products. "
+                "WorkflowBench sends only synthetic example data."
             )
         else:
             provider = "openai"
@@ -87,7 +106,7 @@ with st.sidebar:
                 type="password",
             )
             model = st.text_input(
-                "OpenAI model",
+                "Model",
                 value=os.getenv("OPENAI_MODEL", "gpt-6-luna"),
             )
 
@@ -164,7 +183,7 @@ else:
     if st.button(
         "Run selected live task",
         type="primary",
-        disabled=not api_key_input or not model.strip(),
+        disabled=(provider != "ollama" and not api_key_input) or not model.strip(),
     ):
         st.session_state.pop("latest_live", None)
         try:
@@ -174,6 +193,13 @@ else:
                 client = OpenAI(
                     api_key=api_key_input,
                     base_url=GEMINI_BASE_URL,
+                )
+            elif provider == "ollama":
+                client = OpenAI(
+                    api_key="ollama",
+                    base_url=os.getenv(
+                        "OLLAMA_BASE_URL", "http://localhost:11434/v1/"
+                    ),
                 )
             else:
                 client = OpenAI(api_key=api_key_input)
@@ -248,7 +274,11 @@ if "latest_live" in st.session_state:
         st.caption(f"Estimated API cost: ${metrics['estimated_cost_usd']:.6f}")
     if metrics.get("provider") == "gemini":
         st.caption(
-            "Gemini free-tier quotas and data-use terms apply. Check current usage in AI Studio."
+            "Gemini free-tier eligibility, quotas and data-use terms apply. Check current status in AI Studio."
+        )
+    elif metrics.get("provider") == "ollama":
+        st.caption(
+            "This run used a model on your local Ollama server. No third-party inference API was called."
         )
     st.markdown("**Final output**")
     st.write(latest["run"]["final_output"] or latest["run"].get("error", "No final response."))
