@@ -18,6 +18,7 @@ from openai import OpenAI
 
 from .agents import run_live_agent
 from .gemini_agent import run_gemini_agent
+from .ollama_agent import run_ollama_agent
 from .analytics import mcnemar_exact, summarise_runs
 from .dataset import BENCHMARK_VERSION, load_dataset
 from .evaluator import evaluate_run
@@ -100,8 +101,14 @@ def run_comparison(
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
         runner = run_gemini_agent
+    elif provider == "ollama":
+        client = OpenAI(
+            api_key="ollama",
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1/"),
+        )
+        runner = run_ollama_agent
     else:
-        raise ValueError("provider must be 'openai' or 'gemini'.")
+        raise ValueError("provider must be 'openai', 'gemini' or 'ollama'.")
     if cases_per_agent < 1 or cases_per_agent > 8:
         raise ValueError("cases_per_agent must be between 1 and 8.")
     if repetitions < 1 or repetitions > 3:
@@ -214,7 +221,11 @@ def main() -> int:
     model = args.model or (
         os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
         if args.provider == "gemini"
-        else os.getenv("OPENAI_MODEL", "gpt-6-luna")
+        else (
+            os.getenv("OLLAMA_MODEL", "qwen3:4b")
+            if args.provider == "ollama"
+            else os.getenv("OPENAI_MODEL", "gpt-6-luna")
+        )
     )
     try:
         summary = run_comparison(
