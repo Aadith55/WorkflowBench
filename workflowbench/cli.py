@@ -13,6 +13,19 @@ from .experiments import run_cases
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 
+def _evaluation_failure_line(item: dict) -> str:
+    """Summarize grader dimensions for a completed model response that did not pass."""
+    metrics = item["metrics"]
+    case_id = metrics.get("case_id", item.get("run", {}).get("case_id", "unknown"))
+    return (
+        f"  {case_id}: evaluation failed "
+        f"| terms={metrics.get('required_term_coverage', metrics.get('state_match_rate', 'n/a'))}"
+        f" | retrieval={metrics.get('document_retrieval_recall', 'n/a')}"
+        f" | citations={metrics.get('citation_coverage', 'n/a')}"
+        f" | tool P/R={metrics.get('tool_precision', 'n/a')}/{metrics.get('tool_recall', 'n/a')}"
+    )
+
+
 def _select_benchmark_cases(
     agent: str,
     split: str,
@@ -207,7 +220,10 @@ def main():
     )
     for item in errors:
         run = item["run"]
-        print(f"  {run['case_id']}: {run['status']} — {run.get('error') or 'No final answer.'}")
+        print(f"  {run['case_id']}: run error ({run['status']}) — {run.get('error') or 'No final answer.'}")
+    for item in results:
+        if item["run"]["status"] == "completed" and not item["metrics"]["task_success"]:
+            print(_evaluation_failure_line(item))
     print("Check the local SQLite history and execution traces in the dashboard.")
     return 0
 
