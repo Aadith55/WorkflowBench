@@ -70,7 +70,7 @@ These are fixture-driven pipeline checks, not model results. The simulation inte
 
 ## 2. Run a real model locally with Ollama (no API key)
 
-This is the preferred no-billing option. Ollama runs the model on your computer and exposes a local OpenAI-compatible endpoint. We use Qwen3:4B as the starter model; its Ollama library entry lists tool support and a 2.5 GB quantized download.
+This is the preferred no-billing option. Ollama runs the model on your computer. WorkflowBench uses Ollama's native `/api/chat` endpoint for local runs, explicitly sets `think=false` for Qwen3 tool-use tasks, and keeps the same local sandbox and grader. Qwen3:4B is the starter model; its Ollama library entry lists tool support and a 2.5 GB quantized download.
 
 1. Install [Ollama for Windows](https://ollama.com/download/windows).
 2. In PowerShell, download the model:
@@ -100,7 +100,7 @@ For a matched baseline-versus-verified experiment:
 python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1 --allow-writes
 ```
 
-This runs eight trials on the local model and writes a summary, CSV and traces under `artifacts/live-experiment/`. No API key, hosted inference account or paid API credits are required. The first model download requires an internet connection; inference requests after that go to the local server.
+This runs eight trials on the local model and writes a summary, CSV and traces under `artifacts/live-experiment/`. No API key, hosted inference account or paid API credits are required. The first model download requires an internet connection; inference requests after that go to the local server. The Ollama adapter uses native `/api/chat` with `think=false` and a configurable `OLLAMA_NUM_PREDICT` output budget (default 2048).
 
 Qwen3:4B is a small local model, so tool selection and task accuracy may be weaker than hosted models. Report the exact model and local setup in the research results.
 
@@ -179,7 +179,7 @@ WorkflowBench/
 ├── workflowbench/
 │   ├── agents.py                  # OpenAI Responses API tool-calling loop
 │   ├── gemini_agent.py            # Shared OpenAI-compatible chat loop (Gemini config)
-│   ├── ollama_agent.py             # Local Ollama adapter
+│   ├── ollama_agent.py             # Native local Ollama adapter (think=false)
 │   ├── simulation.py              # Offline fixture-driven pipeline rehearsal
 │   ├── analytics.py               # Wilson interval and paired McNemar test
 │   ├── dataset.py                 # JSONL benchmark loader
