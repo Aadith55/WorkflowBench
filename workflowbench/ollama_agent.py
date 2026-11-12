@@ -127,10 +127,12 @@ def run_ollama_agent(
         if agent_type == "knowledge":
             instructions += (
                 "\nMandatory retrieval gate: do not answer from search snippets. "
-                "After search_documents returns relevant document IDs, call "
-                "get_document for the relevant source and use its full content. "
-                "If you have not successfully called get_document, you must call it "
-                "before producing any final answer. Do not include analysis or planning."
+                "After search_documents returns relevant document IDs, copy the exact "
+                "source ID and call get_document with exactly {document_id: \"DOC-001\"}. "
+                "Never pass query or limit to get_document; those arguments belong only "
+                "to search_documents. Read the full returned content. If you have not "
+                "successfully called get_document, you must call it before producing any "
+                "final answer. Do not include analysis or planning."
             )
 
         messages: list[dict[str, Any]] = [
