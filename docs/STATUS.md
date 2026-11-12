@@ -23,7 +23,7 @@
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation, abstention grading, explicit `get_document` argument guidance, actionable validation feedback and exact-case CLI selection.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
 - The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
-- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history, Knowledge retrieval and citation gates, and source-faithful citation correction; these tests do not make provider API calls.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history, search-result provenance enforcement, retrieval and citation gates, and protection against exposing benchmark answer-key labels; these tests do not make provider API calls.
 
 ## Provider options
 
@@ -50,7 +50,7 @@
 
 - The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B passed all four Knowledge development cases (K01–K04) in separate live baseline runs. This is a small pilot result, not a general performance claim.
 - The first Qwen3:1.7B verified pilot completed all four model responses but passed only two task-success grades. Trace review identified an adapter defect: the Ollama-specific Knowledge prompt hard-coded `DOC-001` even when search returned a different document. The retrieval gate also accepted any full document, not necessarily one returned by the current search. K03 and K04 therefore searched to `DOC-002` but retrieved `DOC-001`; those verified results are diagnostic only and must not be used for a baseline-versus-verified conclusion.
-- A fix is committed on `main`: document IDs are now copied from actual search results, the Ollama adapter rejects `get_document` IDs not returned during that run, retrieval requires a full document whose ID came from search, and citation correction uses retrieved IDs rather than the benchmark answer key. Regression tests cover the K03/K04 mismatch and ensure expected labels are not exposed to the model.
+- A fix is committed on `main`: the shared sandbox records IDs returned by `search_documents` and rejects `get_document` calls using IDs not returned during that sandbox run. The Ollama adapter requires a full document whose ID appears in its search trace, and citation correction uses actually retrieved IDs rather than benchmark answer-key labels. Regression tests cover the K03/K04 mismatch and ensure expected labels are not exposed to the model.
 - The four Knowledge development cases must be rerun with the patched local files under both strategies before drawing a comparison. No held-out evaluation or reliable baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
