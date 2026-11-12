@@ -130,3 +130,92 @@ def test_ollama_runner_reports_output_limit_errors_with_usage(monkeypatch):
     assert "2048-token output limit" in run.error
     assert run.input_tokens == 100
     assert run.output_tokens == 2048
+
+def test_ollama_runner_blocks_knowledge_final_until_full_document_is_retrieved(monkeypatch):
+    responses = [
+        {
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "function": {
+                        "name": "search_documents",
+                        "arguments": {"query": "Access and Identity Standard", "limit": 5},
+                    },
+                }],
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 10,
+            "eval_count": 8,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": "The requester's manager approves the request. [DOC-001]",
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 30,
+            "eval_count": 14,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "function": {
+                        "name": "get_document",
+                        "arguments": {"document_id": "DOC-001"},
+                    },
+                }],
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 40,
+            "eval_count": 9,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": (
+                    "The requester's manager approves a standard access request, "
+                    "which should be completed within one business day. [DOC-001]"
+                ),
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 50,
+            "eval_count": 18,
+        },
+    ]
+
+    def fake_urlopen(request, timeout):
+        payload = json.loads(request.data.decode("utf-8"))
+        sent_payloads.append(payload)
+        return FakeResponse(responses.pop(0))
+
+    sent_payloads = []
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    case = {
+        "id": "K-gated",
+        "agent_type": "knowledge",
+        "task": "Who approves standard access requests and how quickly should it be completed?",
+    }
+    sandbox = Sandbox()
+    run = run_ollama_agent(case, sandbox, client, "qwen3:4b")
+
+    assert run.status == "completed"
+    assert len(sent_payloads) == 4
+    assert "get_document" in [
+        event.tool_name for event in run.trace if event.event_type == "tool_call"
+    ]
+    assert any(event.event_type == "retrieval_gate" for event in run.trace)
+    assert any(
+        message.get("role") == "user"
+        and "Call get_document" in message.get("content", "")
+        for message in sent_payloads[2]["messages"]
+    )
+    assert run.final_output.startswith("The requester's manager")
+    assert "analysis" not in run.final_output.lower()
