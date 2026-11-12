@@ -21,6 +21,11 @@ on:
           - knowledge
           - workflow
         default: both
+      allow_workflow_writes:
+        description: Approve task creation, record updates and message drafts in the disposable sandbox
+        required: true
+        type: boolean
+        default: false
       split:
         description: Benchmark split
         required: true
@@ -67,6 +72,7 @@ jobs:
       SPLIT: ${{ inputs.split }}
       CASES_PER_AGENT: ${{ inputs.cases_per_agent }}
       REPETITIONS: ${{ inputs.repetitions }}
+      ALLOW_WORKFLOW_WRITES: ${{ inputs.allow_workflow_writes }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -107,13 +113,23 @@ jobs:
             echo "::error::Add OPENAI_API_KEY under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          python -m workflowbench.live_compare \
-            --model "$MODEL" \
-            --agent "$AGENT" \
-            --split "$SPLIT" \
-            --cases-per-agent "$CASES_PER_AGENT" \
-            --repetitions "$REPETITIONS" \
+          if [[ "$AGENT" != "knowledge" && "$ALLOW_WORKFLOW_WRITES" != "true" ]]; then
+            echo "::error::Set allow_workflow_writes=true to approve sandbox workflow actions."
+            exit 1
+          fi
+
+          ARGS=(
+            --model "$MODEL"
+            --agent "$AGENT"
+            --split "$SPLIT"
+            --cases-per-agent "$CASES_PER_AGENT"
+            --repetitions "$REPETITIONS"
             --output-dir artifacts/live-experiment
+          )
+          if [[ "$ALLOW_WORKFLOW_WRITES" == "true" ]]; then
+            ARGS+=(--allow-writes)
+          fi
+          python -m workflowbench.live_compare "${ARGS[@]}"
 
       - name: Upload results and traces
         if: always()
