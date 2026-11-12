@@ -137,7 +137,7 @@ See [docs/LIVE_EXPERIMENTS.md](docs/LIVE_EXPERIMENTS.md) for the OpenAI Actions 
 pytest
 ```
 
-Tests cover dataset loading, sandbox tool boundaries, deterministic grading, statistical helpers, the Responses API loop and the Gemini Chat Completions loop using fake clients. Tests do not make paid API calls.
+Tests cover dataset loading, sandbox tool boundaries, deterministic grading, statistical helpers, and fake OpenAI, Gemini and Ollama tool-calling clients. Tests do not make paid API calls.
 
 ## 5. Command line
 
@@ -154,11 +154,13 @@ python -m workflowbench.cli demo --agent knowledge
 python -m workflowbench.cli demo --agent workflow
 ```
 
-Run a small live batch (API key required):
+Run a small local-model batch (Ollama must be installed and running; no API key required):
 
 ```bash
-python -m workflowbench.cli benchmark --agent knowledge --strategy baseline --split development --limit 2
+python -m workflowbench.cli benchmark --provider ollama --agent knowledge --strategy baseline --split development --limit 2
 ```
+
+For Gemini free-tier usage, add `GEMINI_API_KEY` to `.env` and use `--provider gemini`. For paid OpenAI API usage, use `--provider openai` and provide `OPENAI_API_KEY`.
 
 Workflow benchmark tasks require local writes to be enabled:
 
@@ -175,7 +177,8 @@ WorkflowBench/
 ├── app.py                         # Small Streamlit research dashboard
 ├── workflowbench/
 │   ├── agents.py                  # OpenAI Responses API tool-calling loop
-│   ├── gemini_agent.py            # Gemini Chat Completions tool-calling loop
+│   ├── gemini_agent.py            # Shared OpenAI-compatible chat loop (Gemini config)
+│   ├── ollama_agent.py             # Local Ollama adapter
 │   ├── simulation.py              # Offline fixture-driven pipeline rehearsal
 │   ├── analytics.py               # Wilson interval and paired McNemar test
 │   ├── dataset.py                 # JSONL benchmark loader
@@ -235,7 +238,8 @@ These are methodological references. WorkflowBench's 24 scenarios are original s
 - The prototype stores experiment history locally in SQLite and has no authentication or multi-user support.
 - The baseline/verified comparison is an early prompt-and-verification experiment, not a complete factorial design.
 - The GitHub Actions live workflow uses the OpenAI Responses API and requires an OpenAI API key with available quota/billing.
-- Gemini API access can use Google's free tier for eligible models, but quotas and data-use terms apply; verify them in AI Studio.
+- Ollama can run locally without a hosted API key, but model quality and speed depend on computer hardware.
+- Gemini API access can use Google's free tier for eligible models, but eligibility, quotas and data-use terms apply; verify them in AI Studio.
 - Token cost is unknown unless verified provider prices are configured.
 
 The next research iteration should add more human-reviewed cases, measure grader agreement, repeat runs for stochasticity, and document failure categories before making performance claims.
