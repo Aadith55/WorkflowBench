@@ -20,7 +20,7 @@ The first version is deliberately small and teachable. It avoids agent framework
 - The scripted walkthrough is a fixed teaching example. It is **not** an LLM run and its output must not be used as model performance evidence.
 - Knowledge-case expected terms are checked against the referenced synthetic source documents in the test suite.
 - Function-call arguments are checked locally with Pydantic before a tool runs. The model-facing strict JSON Schemas use the supported Structured Outputs subset; stricter length and calendar-date checks remain in the application.
-- All example data is synthetic. All writes happen in memory and are discarded after a run. `draft_message` never sends a message. There is no delete tool.
+- All example data is synthetic. Workflow actions change only a disposable in-memory sandbox and are discarded after a run; observable run traces and metrics are saved to local SQLite history. `draft_message` never sends a message. There is no delete tool.
 - Cost is calculated only when you enter verified token prices in `.env`; otherwise token counts are recorded and cost remains unknown.
 
 ## 1. Quick start
