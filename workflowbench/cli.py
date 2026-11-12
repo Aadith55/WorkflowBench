@@ -37,7 +37,7 @@ def main():
 
     bench = sub.add_parser("benchmark")
     bench.add_argument("--agent", choices=["knowledge", "workflow"], required=True)
-    bench.add_argument("--provider", choices=["openai", "gemini"], default="gemini")
+    bench.add_argument("--provider", choices=["ollama", "gemini", "openai"], default="ollama")
     bench.add_argument("--model", default=None)
     bench.add_argument("--strategy", choices=["baseline", "verified"], default="baseline")
     bench.add_argument(
@@ -50,7 +50,7 @@ def main():
         "compare",
         help="Run matched baseline-versus-verified live model experiments.",
     )
-    compare.add_argument("--provider", choices=["gemini", "openai"], default="gemini")
+    compare.add_argument("--provider", choices=["ollama", "gemini", "openai"], default="ollama")
     compare.add_argument("--model", default=None)
     compare.add_argument("--agent", choices=["knowledge", "workflow", "both"], default="both")
     compare.add_argument(
@@ -102,6 +102,8 @@ def main():
 
         if args.provider == "gemini":
             model = args.model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        elif args.provider == "ollama":
+            model = args.model or os.getenv("OLLAMA_MODEL", "qwen3:4b")
         else:
             model = args.model or os.getenv("OPENAI_MODEL", "gpt-6-luna")
         summary = run_comparison(
@@ -127,6 +129,10 @@ def main():
         if not api_key:
             parser.error("Set GEMINI_API_KEY in .env to use the Gemini free tier.")
         client = OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
+    elif args.provider == "ollama":
+        model = args.model or os.getenv("OLLAMA_MODEL", "qwen3:4b")
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1/")
+        client = OpenAI(api_key="ollama", base_url=base_url)
     else:
         api_key = os.getenv("OPENAI_API_KEY", "")
         model = args.model or os.getenv("OPENAI_MODEL", "gpt-6-luna")
