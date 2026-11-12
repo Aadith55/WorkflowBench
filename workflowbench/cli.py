@@ -46,6 +46,20 @@ def main():
     bench.add_argument("--limit", type=int, default=2)
     bench.add_argument("--allow-writes", action="store_true")
 
+    compare = sub.add_parser(
+        "compare",
+        help="Run matched baseline-versus-verified live model experiments.",
+    )
+    compare.add_argument("--provider", choices=["gemini", "openai"], default="gemini")
+    compare.add_argument("--model", default=None)
+    compare.add_argument("--agent", choices=["knowledge", "workflow", "both"], default="both")
+    compare.add_argument(
+        "--split", choices=["development", "evaluation"], default="development"
+    )
+    compare.add_argument("--cases-per-agent", type=int, default=2)
+    compare.add_argument("--repetitions", type=int, default=1)
+    compare.add_argument("--output-dir", default="artifacts/live-experiment")
+
     args = parser.parse_args()
     if args.command == "list":
         for case in load_dataset():
@@ -79,6 +93,30 @@ def main():
                 f"{agent_type}: {result['grader_fixture_passes']}/"
                 f"{result['cases']} fixture checks passed"
             )
+        print(f"Artifacts: {args.output_dir}")
+        print(summary["interpretation"])
+        return 0
+
+    if args.command == "compare":
+        from .live_compare import run_comparison
+
+        if args.provider == "gemini":
+            model = args.model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        else:
+            model = args.model or os.getenv("OPENAI_MODEL", "gpt-6-luna")
+        summary = run_comparison(
+            model=model,
+            agent=args.agent,
+            split=args.split,
+            cases_per_agent=args.cases_per_agent,
+            repetitions=args.repetitions,
+            output_dir=args.output_dir,
+            provider=args.provider,
+        )
+        print(
+            f"Completed {summary['configuration']['model_run_count']} "
+            f"{args.provider} model runs."
+        )
         print(f"Artifacts: {args.output_dir}")
         print(summary["interpretation"])
         return 0
