@@ -155,10 +155,10 @@ python -m workflowbench.cli demo --agent knowledge
 python -m workflowbench.cli demo --agent workflow
 ```
 
-Run a small local-model batch (Ollama must be installed and running; no API key required):
+Run one specific local benchmark case (Ollama must be installed and running; no API key required):
 
 ```bash
-python -m workflowbench.cli benchmark --provider ollama --agent knowledge --strategy baseline --split development --limit 2
+python -m workflowbench.cli benchmark --provider ollama --agent knowledge --strategy baseline --split development --case-id K02
 ```
 
 For Gemini free-tier usage, add `GEMINI_API_KEY` to `.env` and use `--provider gemini`. For paid OpenAI API usage, use `--provider openai` and provide `OPENAI_API_KEY`.
@@ -169,7 +169,7 @@ Workflow benchmark tasks require local writes to be enabled:
 python -m workflowbench.cli benchmark --agent workflow --strategy verified --split development --limit 2 --allow-writes
 ```
 
-Start with small batches. Each live case makes one or more model requests and may incur API cost.
+Use `--case-id K02` to rerun one exact scenario without rerunning earlier cases, or `--limit 2` for the first two cases in a split. Each live case makes one or more model requests and may incur API cost; Ollama runs locally without hosted inference billing.
 
 ## 6. Project map
 
