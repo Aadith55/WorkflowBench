@@ -54,11 +54,12 @@ Use the same held-out case IDs, model and tool permissions under baseline and ve
 
 ## What are the biggest limitations?
 
-1. Only 24 synthetic cases are included in v0.1.
+1. Only 24 synthetic cases are included in v0.2.
 2. Keyword search is not a production retrieval system.
 3. Phrase checks can miss correct paraphrases and reward keyword copying.
 4. Citation presence does not prove that a claim is entailed by the source.
 5. The workflow grader checks state but does not fully grade the optimality of intermediate steps.
+6. Tool-call F1 counts repeated calls but does not assess argument-level correctness.
 6. Real API cost requires verified provider prices.
 
 ## Questions to practise
