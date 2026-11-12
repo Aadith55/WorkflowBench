@@ -16,7 +16,7 @@ The first version is deliberately small and teachable. It avoids agent framework
 - Results from this small benchmark are exploratory. Do not describe them as statistically conclusive or generalised to production agents.
 - Live runs can use a local Ollama model, Google's Gemini API through its OpenAI-compatible Chat Completions endpoint, or the OpenAI Responses API.
 - A fully offline **local simulation** runs all benchmark cases through the sandbox and deterministic grader without an LLM, network request or API key. It is a pipeline rehearsal, not model evaluation.
-- The local simulation is fixture-driven: it reads benchmark expected labels to stage known tool sequences. Its pass rate must not be presented as LLM performance.
+- The local simulation is fixture-driven: it reads benchmark expected labels to stage known tool sequences. Its pass rate must not be presented as LLM performance. The Ollama Knowledge runner also enforces full-document retrieval and required source citations before accepting a final answer.
 - The scripted walkthrough is a fixed teaching example. It is **not** an LLM run and its output must not be used as model performance evidence.
 - Knowledge-case expected terms are checked against the referenced synthetic source documents in the test suite.
 - Function-call arguments are checked locally with Pydantic before a tool runs. The model-facing strict JSON Schemas use the supported Structured Outputs subset; stricter length and calendar-date checks remain in the application.
