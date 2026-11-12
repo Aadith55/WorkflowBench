@@ -10,7 +10,7 @@
 ## Request path
 1. Streamlit or CLI selects a benchmark case, provider and strategy.
 2. `experiments.run_one_case` creates a fresh `Sandbox`.
-3. The OpenAI path uses `agents.run_live_agent` and the Responses API; the Gemini path uses `gemini_agent.run_gemini_agent` and Google's OpenAI-compatible Chat Completions endpoint.
+3. The OpenAI path uses `agents.run_live_agent` and the Responses API; Gemini uses `gemini_agent.run_gemini_agent` and Google's OpenAI-compatible Chat Completions endpoint; local Ollama uses `ollama_agent.run_ollama_agent` and the local OpenAI-compatible endpoint.
 4. Model function calls are passed to `Sandbox.call`.
 5. Pydantic validates arguments and the sandbox checks agent permissions and write approval.
 6. Tool output is returned to the model; trace events and provider-reported token usage are recorded.
@@ -23,7 +23,8 @@
 - `models.py`: AgentRun and TraceEvent data structures.
 - `tools.py`: schemas, argument models, sandbox and local tool implementations.
 - `agents.py`: OpenAI Responses API model/tool orchestration loop.
-- `gemini_agent.py`: Gemini Chat Completions tool-calling adapter.
+- `gemini_agent.py`: shared OpenAI-compatible Chat Completions tool-calling loop, configured for Gemini by default.
+- `ollama_agent.py`: local Ollama adapter; omits the unsupported `tool_choice` request parameter.
 - `simulation.py`: offline fixture-driven pipeline rehearsal; not model evaluation.
 - `evaluator.py`: task-specific deterministic graders.
 - `analytics.py`: Wilson interval, summaries and paired exact McNemar calculation.
