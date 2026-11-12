@@ -138,4 +138,4 @@ A free-tier quota error, unavailable model or project restriction is a provider 
 
 ## 4. OpenAI GitHub Actions workflow
 
-The existing manual GitHub Actions workflow remains an OpenAI Responses API workflow and still requires `OPENAI_API_KEY` with available API quota. The Gemini local CLI path does not use that key and does not require paid OpenAI credits.
+The existing manual GitHub Actions workflow remains an OpenAI Responses API workflow and still requires `OPENAI_API_KEY` with available API quota. The local Ollama path does not use that key and does not require paid OpenAI credits. Gemini is a separate hosted API option that requires its own key and eligible free-tier quota.
