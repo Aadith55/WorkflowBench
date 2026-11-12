@@ -12,7 +12,7 @@ Keep model ID, dataset version, tools and other settings fixed. Run matched case
 ## Metrics
 ### Knowledge tasks
 - Required-term coverage.
-- Required document retrieval recall.
+- Full-document retrieval recall: a required document counts as retrieved only when the `get_document` tool returns its full content; a search-result snippet alone does not count.
 - Citation coverage.
 - Correct abstention on missing information.
 - Tool-call precision, recall and F1 (repeated calls count as additional tool calls).
