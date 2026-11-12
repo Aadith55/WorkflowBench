@@ -5,7 +5,7 @@
 - Knowledge & Research Agent and Workflow Execution Agent with isolated tool allowlists.
 - OpenAI Responses API runner, Gemini Chat Completions runner and local Ollama Chat Completions runner.
 - Strict local Pydantic argument validation, disposable in-memory workspace and source-document sandbox.
-- Explicit write approval, unsent message drafts, no delete tool and incident-closure recovery precondition.
+- Explicit write approval in the dashboard and both CLI run paths, unsent message drafts, no delete tool and incident-closure recovery precondition.
 - Benchmark `starter-v0.2`: 24 labelled synthetic scenarios (12 per agent; 8 development and 16 held-out evaluation).
 - Source-grounding checks for Knowledge expected terms, duplicate-ID checks and occurrence-aware tool-call precision/recall/F1.
 - Deterministic graders, baseline and verified prompt strategies, trace capture and SQLite history for live model runs.
