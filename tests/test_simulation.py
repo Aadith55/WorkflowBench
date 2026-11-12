@@ -57,3 +57,13 @@ def test_abstention_case_is_explicitly_marked_as_not_specified():
     assert "not specified" in run.final_output.lower()
     assert "[DOC-004]" in run.final_output
     assert metrics["task_success"] == 1
+
+
+
+def test_k01_simulation_uses_the_source_wording_without_a_fixture_only_patch():
+    cases = {case["id"]: case for case in load_dataset()}
+    run, _, metrics = simulate_case(cases["K01"])
+
+    assert "requester's manager" in run.final_output.lower()
+    assert "manager approval is required" not in run.final_output.lower()
+    assert metrics["task_success"] == 1
