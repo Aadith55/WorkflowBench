@@ -20,7 +20,7 @@ Keep model ID, dataset version, tools and other settings fixed. Run matched case
 ### Workflow tasks
 - Task success from actual sandbox postconditions.
 - State-match rate.
-- Tool precision, recall and F1.
+- Tool-call precision, recall and F1; repeated calls count as additional calls.
 - Blocked action attempts and tool errors.
 - Sandbox mutations.
 
