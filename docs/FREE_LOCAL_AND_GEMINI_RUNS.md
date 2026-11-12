@@ -24,9 +24,62 @@ The run is explicitly marked `deterministic_fixture_simulation`, records zero ne
 
 **Do not report its pass rate as model performance.** The fixture uses expected labels to construct known-good actions; it is an implementation and regression check only.
 
-## 2. Gemini API free tier
+## 2. Local model with Ollama (no API key or inference billing)
 
-Google AI Studio currently offers a free tier for selected Gemini API models. The current default configured here is `gemini-3.8-flash`. Availability, quotas and eligible models can change, so check the live quota panel before running more cases.
+This is the most predictable no-billing route for an actual model run. The model runs on your own computer; after downloading it, the chat and tool-call requests go to the local Ollama server at `localhost`, not a hosted inference API.
+
+We configure **Qwen3:4B** as the starter model. Its Ollama library entry lists tool support and a 2.5 GB quantized download. The output quality and speed will depend on your hardware, and a 4B model may be less capable than larger hosted models. [Ollama model page](https://ollama.com/library/qwen3:4b)
+
+### Setup on Windows
+
+1. Install [Ollama for Windows](https://ollama.com/download/windows). Ollama supports Windows 10 or later and runs as a native app.
+2. Open PowerShell and download the model:
+
+   ```powershell
+   ollama pull qwen3:4b
+   ```
+
+3. Confirm the model is installed:
+
+   ```powershell
+   ollama list
+   ```
+
+4. Make sure the Ollama app/server is running. The local OpenAI-compatible endpoint defaults to `http://localhost:11434/v1/`.
+5. Pull the latest WorkflowBench code and install its dependencies:
+
+   ```powershell
+   git pull origin main
+   pip install -e ".[dev]"
+   ```
+
+6. Run one live scenario through your local model:
+
+   ```powershell
+   python -m workflowbench.cli benchmark --provider ollama --agent knowledge --strategy baseline --split development --limit 1
+   ```
+
+7. Run a matched baseline-versus-verified pilot:
+
+   ```powershell
+   python -m workflowbench.cli compare --provider ollama --agent both --split development --cases-per-agent 2 --repetitions 1
+   ```
+
+This runs eight model trials across the four development scenarios. Each trial can involve multiple local model requests as tools are called. Output files are saved under `artifacts/live-experiment/`.
+
+No `OLLAMA_API_KEY` is needed. The client uses a placeholder key because the OpenAI Python client requires a non-empty value; Ollama's local server ignores it. WorkflowBench does not call a cloud API when the provider is `ollama`.
+
+If your computer cannot run Qwen3:4B comfortably, we can select a smaller model after checking its tool-calling support. Smaller models may make more tool-selection and argument errors, which is useful to measure but should be reported honestly.
+
+Official references:
+
+- [Ollama Windows download](https://ollama.com/download/windows)
+- [Ollama OpenAI compatibility](https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx)
+- [Qwen3:4B model and tool support](https://ollama.com/library/qwen3:4b)
+
+## 3. Gemini API free tier
+
+Google AI Studio offers a free tier for selected Gemini API models. The current default configured here is `gemini-3.8-flash`. Free-tier eligibility is not guaranteed for every account or project: some recently reported projects show a free-tier unavailable restriction and return 403 unless billing is enabled. We will not enable billing to bypass this. Check the AI Studio project status and quota panel first.
 
 Official references:
 
@@ -83,6 +136,6 @@ The output directory contains:
 
 A free-tier quota error, unavailable model or project restriction is a provider failure, not a zero-cost successful result. Inspect the traces and current quota panel before retrying. Do not switch to paid billing just to bypass a quota error.
 
-## 3. OpenAI GitHub Actions workflow
+## 4. OpenAI GitHub Actions workflow
 
 The existing manual GitHub Actions workflow remains an OpenAI Responses API workflow and still requires `OPENAI_API_KEY` with available API quota. The Gemini local CLI path does not use that key and does not require paid OpenAI credits.
