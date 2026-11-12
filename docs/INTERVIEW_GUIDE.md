@@ -15,7 +15,7 @@ They represent two different capabilities while sharing the same execution infra
 - The Knowledge Agent is read-only and must cite the documents it retrieves.
 - The Workflow Agent can perform bounded local actions such as creating tasks, updating a record status and drafting a message.
 
-A shared runner avoids duplicating the tool-calling loop. The separate tool allowlists keep each agent's capabilities explicit.
+The two tracks share instructions, schemas, trace structures and sandbox controls. Provider-specific runners handle the API protocol, while separate tool allowlists keep each agent's capabilities explicit.
 
 ## Explain the tool-calling loop
 
