@@ -114,10 +114,6 @@ def simulate_case(case: dict[str, Any]) -> tuple[AgentRun, Sandbox, dict[str, An
                 raise RuntimeError(f"Could not retrieve full document {document_id}.")
 
             final_output = f'{retrieved["content"]} [{document_id}]'
-            if expected.get("must_abstain"):
-                final_output += (
-                    " The exact monetary penalty is not specified in the source."
-                )
 
         elif agent_type == "workflow":
             required_tools = expected.get("required_tools", [])
