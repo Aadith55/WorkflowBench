@@ -42,6 +42,19 @@ def _chat_tools(agent_type: str) -> list[dict[str, Any]]:
     ]
 
 
+def _has_full_document_retrieval(trace: list[TraceEvent]) -> bool:
+    """Return true only when get_document produced non-empty full source content."""
+    return any(
+        event.event_type == "tool_result"
+        and event.tool_name == "get_document"
+        and isinstance(event.result, dict)
+        and str(event.result.get("id", "")).startswith("DOC-")
+        and isinstance(event.result.get("content"), str)
+        and bool(event.result["content"].strip())
+        for event in trace
+    )
+
+
 def _num_predict() -> int:
     raw = os.getenv("OLLAMA_NUM_PREDICT", "2048")
     try:
@@ -95,6 +108,7 @@ def run_ollama_agent(
     input_tokens = 0
     output_tokens = 0
     calls_used = 0
+    retrieval_reminders = 0
     agent_type = case.get("agent_type", "")
     case_id = str(case.get("id", "unknown"))
     endpoint = f"{_native_api_root(client)}/api/chat"
@@ -110,6 +124,14 @@ def run_ollama_agent(
         instructions = BASE_INSTRUCTIONS + AGENT_INSTRUCTIONS[agent_type]
         if strategy == "verified":
             instructions += VERIFIED_ADDENDUM
+        if agent_type == "knowledge":
+            instructions += (
+                "\\nMandatory retrieval gate: do not answer from search snippets. "
+                "After search_documents returns relevant document IDs, call "
+                "get_document for the relevant source and use its full content. "
+                "If you have not successfully called get_document, you must call it "
+                "before producing any final answer. Do not include analysis or planning."
+            )
 
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": instructions},
@@ -153,6 +175,37 @@ def run_ollama_agent(
 
             if not function_calls:
                 final_output = assistant_message["content"].strip()
+                if agent_type == "knowledge" and not _has_full_document_retrieval(trace):
+                    if retrieval_reminders >= 2:
+                        raise RuntimeError(
+                            "Knowledge Agent returned a final answer without retrieving "
+                            "a full source document with get_document. The answer was not accepted."
+                        )
+                    retrieval_reminders += 1
+                    trace.append(TraceEvent(
+                        index=len(trace) + 1,
+                        event_type="retrieval_gate",
+                        message=(
+                            "Final answer paused: no full source document was retrieved. "
+                            "The model was asked to call get_document before answering."
+                        ),
+                    ))
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "Your final answer is not accepted yet. You used only search "
+                            "results, which are snippets. Call get_document with the ID of "
+                            "the relevant search result, read its full content, and then "
+                            "give a concise answer with the source citation. Do not describe "
+                            "your analysis."
+                        ),
+                    })
+                    continue
+
+                # Qwen3 may include a visible closing think marker in content on some
+                # Ollama/model versions. Keep only the answer after that marker.
+                if "</think>" in final_output:
+                    final_output = final_output.rsplit("</think>", 1)[-1].strip()
                 trace.append(TraceEvent(
                     index=len(trace) + 1,
                     event_type="final",
