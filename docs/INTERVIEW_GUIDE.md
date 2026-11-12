@@ -26,7 +26,7 @@ The two tracks share instructions, schemas, trace structures and sandbox control
 5. The application returns the tool output using the matching call ID.
 6. The model continues until it returns a final answer or reaches the tool-call limit.
 
-The model requests tools; the application owns and executes the actual Python functions.
+The model requests tools; the application owns and executes the actual Python functions. The dashboard requires a write-approval checkbox, the single-case CLI uses --allow-writes, and matched workflow comparisons also require explicit --allow-writes approval.
 
 ## Why use strict schemas?
 
