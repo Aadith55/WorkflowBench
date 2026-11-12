@@ -1,4 +1,4 @@
-"""Deterministic graders for the v0.1 benchmark. No LLM-as-judge is used."""
+"""Deterministic graders for the v0.2 benchmark. No LLM-as-judge is used."""
 from __future__ import annotations
 from collections import Counter
 from typing import Any
