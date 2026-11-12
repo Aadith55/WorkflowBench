@@ -19,7 +19,7 @@ A shared runner avoids duplicating the tool-calling loop. The separate tool allo
 
 ## Explain the tool-calling loop
 
-1. The application sends a user task and JSON-schema function definitions to the Responses API.
+1. The selected provider adapter sends the task and JSON-schema tool definitions to its model endpoint: Responses API for OpenAI, Chat Completions for Gemini and Ollama.
 2. The model may return a function call containing a tool name and arguments.
 3. The application parses the arguments and checks the tool allowlist and write permission.
 4. The local Python function executes inside the sandbox.
@@ -34,7 +34,7 @@ Strict schemas reduce malformed tool arguments and constrain the shape of functi
 
 ## Why not use LangGraph or another agent framework?
 
-The v0.1 objective is learnability and transparency. A short explicit loop is enough for two agents with a small tool set. A framework may become useful if the workflow grows to include long-running state, complex branching, retries, resumability or many handoffs.
+The v0.2 objective is learnability and transparency. A short explicit loop is enough for two agents with a small tool set. A framework may become useful if the workflow grows to include long-running state, complex branching, retries, resumability or many handoffs.
 
 ## Why is the evaluator deterministic?
 
@@ -60,7 +60,7 @@ Use the same held-out case IDs, model and tool permissions under baseline and ve
 4. Citation presence does not prove that a claim is entailed by the source.
 5. The workflow grader checks state but does not fully grade the optimality of intermediate steps.
 6. Tool-call F1 counts repeated calls but does not assess argument-level correctness.
-6. Real API cost requires verified provider prices.
+7. Real API cost requires verified provider prices.
 
 ## Questions to practise
 
