@@ -39,8 +39,9 @@ def run_gemini_agent(
     strategy: str = "baseline",
     allow_writes: bool = False,
     max_tool_calls: int = 8,
+    tool_choice: str | None = "auto",
 ) -> AgentRun:
-    """Run one case against Gemini's OpenAI-compatible Chat Completions API."""
+    """Run one case against an OpenAI-compatible Chat Completions endpoint."""
     started = time.perf_counter()
     trace: list[TraceEvent] = []
     input_tokens = 0
@@ -68,13 +69,17 @@ def run_gemini_agent(
         tools = _chat_tools(agent_type)
 
         while True:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=tools,
-                tool_choice="auto",
-                max_tokens=1200,
-            )
+            request_args = {
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "max_tokens": 1200,
+            }
+            # Ollama's local OpenAI-compatible endpoint currently documents tools
+            # but not the tool_choice request field; omit it for local inference.
+            if tool_choice is not None:
+                request_args["tool_choice"] = tool_choice
+            response = client.chat.completions.create(**request_args)
             choices = getattr(response, "choices", None) or []
             if not choices:
                 raise RuntimeError("Chat Completions API returned no choices.")
@@ -95,7 +100,7 @@ def run_gemini_agent(
                 trace.append(TraceEvent(
                     index=len(trace) + 1,
                     event_type="final",
-                    message="Gemini returned its final response.",
+                    message="Model returned its final response.",
                     result=final_output,
                 ))
                 run = AgentRun(
@@ -185,7 +190,7 @@ def run_gemini_agent(
         trace.append(TraceEvent(
             index=len(trace) + 1,
             event_type="run_error",
-            message=f"Gemini run stopped: {type(exc).__name__}: {exc}",
+            message=f"Model run stopped: {type(exc).__name__}: {exc}",
         ))
         return AgentRun(
             case_id=case_id,
