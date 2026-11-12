@@ -48,10 +48,10 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B has now passed all four Knowledge development cases (K01–K04) in separate live baseline runs on the same model and local setup. This is a four-case pilot result, not a general performance claim.
-- Earlier Qwen3:4B baseline runs passed K03 and K04. Qwen3:4B K02 completed with the correct answer and source citation but made one malformed redundant `get_document` call before recovering, so the strict tool-precision grader marked it failed. Qwen3:4B K01 previously hit the output cap or timed out under CPU-only execution.
-- The `get_document` schema and Knowledge instructions explicitly require the exact `document_id` field. Tool validation errors return actionable missing/extra-field details. The Ollama runner pauses Knowledge answers that omit full-document retrieval or required citations and asks for source-faithful corrections; automated tests cover both gates.
-- The next experiment is to run the same four Knowledge development cases with the verified strategy on Qwen3:1.7B, keeping the model, provider and dataset split fixed. No full held-out evaluation or baseline-versus-verified conclusion has been completed.
+- The user successfully launched Ollama and Streamlit locally. Qwen3:1.7B passed all four Knowledge development cases (K01–K04) in separate live baseline runs. This is a small pilot result, not a general performance claim.
+- The first Qwen3:1.7B verified pilot completed all four model responses but passed only two task-success grades. Trace review identified an adapter defect: the Ollama-specific Knowledge prompt hard-coded `DOC-001` even when search returned a different document. The retrieval gate also accepted any full document, not necessarily one returned by the current search. K03 and K04 therefore searched to `DOC-002` but retrieved `DOC-001`; those verified results are diagnostic only and must not be used for a baseline-versus-verified conclusion.
+- A fix is committed on `main`: document IDs are now copied from actual search results, the Ollama adapter rejects `get_document` IDs not returned during that run, retrieval requires a full document whose ID came from search, and citation correction uses retrieved IDs rather than the benchmark answer key. Regression tests cover the K03/K04 mismatch and ensure expected labels are not exposed to the model.
+- The four Knowledge development cases must be rerun with the patched local files under both strategies before drawing a comparison. No held-out evaluation or reliable baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
