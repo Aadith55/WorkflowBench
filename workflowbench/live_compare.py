@@ -223,6 +223,11 @@ def main() -> int:
     parser.add_argument("--split", choices=["development", "evaluation"], default="development")
     parser.add_argument("--cases-per-agent", type=int, default=2)
     parser.add_argument("--repetitions", type=int, default=1)
+    parser.add_argument(
+        "--allow-writes",
+        action="store_true",
+        help="Explicitly approve workflow writes inside the disposable sandbox.",
+    )
     parser.add_argument("--output-dir", default="artifacts/live-experiment")
     args = parser.parse_args()
 
@@ -244,6 +249,7 @@ def main() -> int:
             repetitions=args.repetitions,
             output_dir=args.output_dir,
             provider=args.provider,
+            allow_workflow_writes=args.allow_writes,
         )
     except Exception as exc:
         parser.exit(2, f"Experiment failed: {type(exc).__name__}: {exc}\n")
