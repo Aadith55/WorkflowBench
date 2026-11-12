@@ -3,7 +3,7 @@
 ## Implemented
 
 - Knowledge & Research Agent and Workflow Execution Agent with isolated tool allowlists.
-- OpenAI Responses API runner, Gemini Chat Completions runner and local Ollama Chat Completions runner.
+- OpenAI Responses API runner, Gemini Chat Completions runner and local Ollama native `/api/chat` runner.
 - Strict local Pydantic argument validation, disposable in-memory workspace and source-document sandbox.
 - Explicit write approval in the dashboard and both CLI run paths, unsent message drafts, no delete tool and incident-closure recovery precondition.
 - Benchmark `starter-v0.2`: 24 labelled synthetic scenarios (12 per agent; 8 development and 16 held-out evaluation).
@@ -18,12 +18,12 @@
 
 ## Verification
 
-- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 40 tests**.
+- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 42 tests**.
 - The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation and abstention grading when retrieved documents contain unrelated limitation statements.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
 - The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
-- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling and tool-result history; these tests do not make provider API calls.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history and the Knowledge retrieval gate; these tests do not make provider API calls.
 
 ## Provider options
 
@@ -48,9 +48,9 @@
 
 ## Not yet verified
 
-- No successful live Gemini or Ollama model run has yet been confirmed. The local Ollama adapter has been changed to native `/api/chat` with Qwen3 thinking disabled; a user-side rerun is still required.
-- Ollama has not been launched on the user's computer; it requires installing Ollama and downloading the selected model locally.
-- Streamlit has not been manually launched in the user's environment.
+- The user successfully launched Ollama and Streamlit locally. A first Qwen3:4B Knowledge run completed but answered from a search snippet without calling `get_document`; a retrieval gate has now been added and requires a user-side rerun.
+- No successful live Gemini run has yet been confirmed. No completed Qwen3 result has yet passed the real-model Knowledge grader.
+- Streamlit has been manually launched in the user's environment.
 - No model-performance improvement, cost saving or market opportunity has been measured.
 - The benchmark is a small synthetic pilot and is not representative of production traffic.
 
