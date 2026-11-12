@@ -18,12 +18,12 @@
 
 ## Verification
 
-- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 46 tests**.
+- GitHub Actions CI is green on `main`; the latest confirmed run passed **all 47 tests**.
 - The CI workflow installs the project with development dependencies, compiles the dashboard, package and tests, then runs the full `pytest` suite.
 - The regression suite covers source-grounded Knowledge labels, dataset validation, repeated tool-call scoring, source-faithful fixture simulation, abstention grading, explicit `get_document` argument guidance, actionable validation feedback and exact-case CLI selection.
 - The offline simulation test exercises all 24 benchmark scenarios through the local sandbox, deterministic grader and JSON/CSV/trace export paths.
 - The simulation makes no model calls or network requests and reports zero API cost. Its fixture pass rate is pipeline validation only, not model performance evidence.
-- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history and the Knowledge retrieval gate; these tests do not make provider API calls.
+- Fake-client tests cover OpenAI Responses, Gemini Chat Completions and Ollama native `/api/chat` tool calling, including `think=false`, output-budget handling, tool-result history, Knowledge retrieval and citation gates, and source-faithful citation correction; these tests do not make provider API calls.
 
 ## Provider options
 
@@ -48,9 +48,9 @@
 
 ## Not yet verified
 
-- The user successfully launched Ollama and Streamlit locally. A live Qwen3:4B baseline run passed K01 once. A later four-case Knowledge development batch completed three model responses and produced two task passes (K03 and K04); K01 hit its 2,048-token output cap and K02 answered correctly but made one malformed redundant `get_document` call before recovering.
-- The `get_document` schema and Knowledge instructions now explicitly require the exact `document_id` field. Tool validation errors now return actionable missing/extra-field details. A user-side rerun is still needed to determine whether this reduces malformed calls.
-- No successful live Gemini run has yet been confirmed, and no full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
+- The user successfully launched Ollama and Streamlit locally. Qwen3:4B passed K01 once but later hit the output cap or timed out under CPU-only execution. Qwen3:1.7B completed K01 in 16.7 seconds with full-document retrieval and required terms but omitted `[DOC-001]`; it also paraphrased the timing clause imprecisely. K02 completed with correct answer and source citation but made one malformed redundant `get_document` call before recovering. K03 and K04 passed in the earlier Qwen3:4B development batch.
+- The `get_document` schema and Knowledge instructions explicitly require the exact `document_id` field. Tool validation errors return actionable missing/extra-field details. The Ollama runner also pauses Knowledge answers that omit required citations and asks for a source-faithful correction; automated tests cover both gates.
+- The citation gate and source-faithful correction were added after the user's Qwen3:1.7B K01 run; a local rerun is needed to confirm the model follows the citation correction. No full held-out evaluation or matched baseline-versus-verified conclusion has been completed.
 - No model-performance improvement, cost saving or market opportunity has been measured. The 24-case synthetic starter benchmark is exploratory and not representative of production traffic.
 
 ## Next research milestones
