@@ -106,7 +106,9 @@ def test_get_document_schema_explains_exact_document_id_argument():
     assert set(schema["parameters"]["properties"]) == {"document_id"}
     assert "exact document ID" in schema["description"]
     assert "do not pass the search query or limit" in schema["description"]
-    assert "Exact source ID" in schema["parameters"]["properties"]["document_id"]["description"]
+    parameter_description = schema["parameters"]["properties"]["document_id"]["description"]
+    assert "Exact source ID copied verbatim" in parameter_description
+    assert "DOC-001" not in schema["description"] + parameter_description
 
 
 def test_invalid_get_document_arguments_return_actionable_validation_details():
