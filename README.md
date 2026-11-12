@@ -215,7 +215,7 @@ Keep the model, dataset version, tool schemas and other settings fixed when comp
 
 ## 8. Evaluation approach
 
-Knowledge tasks use deterministic checks for required terms, source retrieval, citation coverage and abstention. Workflow tasks use tool-call coverage and postcondition checks against the sandbox state. We intentionally do not use an LLM to grade another LLM in v0.1.
+Knowledge tasks use deterministic checks for required terms, source retrieval, citation coverage and abstention. Workflow tasks use tool-call coverage and postcondition checks against the sandbox state. We intentionally do not use an LLM to grade another LLM in v0.2.
 
 The dashboard reports task success, tool precision/recall/F1, state-match rate or knowledge-specific metrics, latency and token usage. The exact McNemar helper compares matched case IDs across baseline and verified strategies. Confidence intervals and significance tests must be interpreted cautiously with this small starter set.
 
