@@ -219,3 +219,92 @@ def test_ollama_runner_blocks_knowledge_final_until_full_document_is_retrieved(m
     )
     assert run.final_output.startswith("The requester's manager")
     assert "analysis" not in run.final_output.lower()
+
+def test_ollama_runner_requests_citation_before_accepting_knowledge_answer(monkeypatch):
+    responses = [
+        {
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "function": {
+                        "name": "search_documents",
+                        "arguments": {"query": "access standard", "limit": 5},
+                    },
+                }],
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 10,
+            "eval_count": 8,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "function": {
+                        "name": "get_document",
+                        "arguments": {"document_id": "DOC-001"},
+                    },
+                }],
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 30,
+            "eval_count": 9,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": (
+                    "The requester's manager approves the access request. "
+                    "It should be completed within one business day after approval."
+                ),
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 40,
+            "eval_count": 20,
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": (
+                    "The requester's manager must approve a standard access request, "
+                    "which should be completed within one business day after approval. "
+                    "[DOC-001]"
+                ),
+            },
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 55,
+            "eval_count": 25,
+        },
+    ]
+
+    sent_payloads = []
+
+    def fake_urlopen(request, timeout):
+        sent_payloads.append(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr("workflowbench.ollama_agent.urlopen", fake_urlopen)
+    client = SimpleNamespace(base_url="http://localhost:11434/v1/")
+    case = {
+        "id": "K-citation",
+        "agent_type": "knowledge",
+        "task": "Who approves a standard access request and when should it be completed?",
+        "expected": {"required_doc_ids": ["DOC-001"]},
+    }
+
+    run = run_ollama_agent(case, Sandbox(), client, "qwen3:1.7b")
+
+    assert run.status == "completed"
+    assert len(sent_payloads) == 4
+    assert "[DOC-001]" in run.final_output
+    assert any(event.event_type == "citation_gate" for event in run.trace)
+    correction = sent_payloads[3]["messages"][-1]["content"]
+    assert "[DOC-001]" in correction
+    assert "do not change what a deadline applies to" in correction
+    assert "within one business day after approval" in correction
