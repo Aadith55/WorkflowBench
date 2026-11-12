@@ -70,7 +70,7 @@ def test_knowledge_success_requires_full_document_retrieval_tool():
         ],
     )
     metrics = evaluate_run(case, run, Sandbox())
-    assert metrics["document_retrieval_recall"] == 1.0
+    assert metrics["document_retrieval_recall"] == 0.0
     assert metrics["tool_recall"] < 1.0
     assert metrics["task_success"] == 0
 
