@@ -105,6 +105,12 @@ def main():
     if args.command == "compare":
         from .live_compare import run_comparison
 
+        if args.agent in {"workflow", "both"} and not args.allow_writes:
+            parser.error(
+                "Workflow comparisons perform sandbox writes. Add --allow-writes "
+                "to explicitly approve them."
+            )
+
         if args.provider == "gemini":
             model = args.model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
         elif args.provider == "ollama":
