@@ -1,7 +1,8 @@
 """Run matched live baseline-versus-verified WorkflowBench experiments.
 
-This command makes paid Responses API calls. Keep the first run small, inspect
-the saved traces, and only then increase the case limit or repetitions.
+Supports OpenAI Responses API and Gemini Chat Completions. Gemini API access may
+be available on a limited free tier; provider quotas and terms still apply.
+Keep the first run small and inspect saved traces before increasing its size.
 """
 from __future__ import annotations
 
