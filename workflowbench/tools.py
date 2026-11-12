@@ -157,7 +157,7 @@ WRITE_TOOLS = {"create_task","update_record","draft_message"}
 def tool_schemas(agent_type: str) -> list[dict[str, Any]]:
     definitions = {
       "search_documents":("Search the local document library.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
-      "get_document":("Retrieve the full source document using the exact document ID returned by search_documents. Pass only document_id (for example DOC-001); do not pass the search query or limit.",{"document_id":{"type":"string","description":"Exact source ID from search_documents results, such as DOC-001. This is not the search query."}},["document_id"]),
+      "get_document":("Retrieve the full source document using the exact document ID copied from a search_documents result in this run. Do not guess or assume a default ID; do not pass the search query or limit.",{"document_id":{"type":"string","description":"Exact source ID copied verbatim from one of the current run's search_documents results. This is not the search query."}},["document_id"]),
       "search_records":("Search local workspace records.",{"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":5}},["query","limit"]),
       "get_record":("Retrieve one workspace record by ID.",{"record_id":{"type":"string"}},["record_id"]),
       "create_task":("Create a task in the disposable local sandbox; no notification is sent.",{"title":{"type":"string"},"owner":{"type":"string"},"due_date":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}$","description":"ISO date YYYY-MM-DD"},"related_record_id":{"type":"string","description":"ID of an existing workspace record"}},["title","owner","due_date","related_record_id"]),
