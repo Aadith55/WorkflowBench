@@ -3,10 +3,14 @@ import argparse
 import os
 
 from dotenv import load_dotenv
+from openai import OpenAI
 
 from .dataset import load_dataset
 from .demo import run_scripted_walkthrough
 from .experiments import run_cases
+
+
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 
 def main():
@@ -33,6 +37,8 @@ def main():
 
     bench = sub.add_parser("benchmark")
     bench.add_argument("--agent", choices=["knowledge", "workflow"], required=True)
+    bench.add_argument("--provider", choices=["openai", "gemini"], default="gemini")
+    bench.add_argument("--model", default=None)
     bench.add_argument("--strategy", choices=["baseline", "verified"], default="baseline")
     bench.add_argument(
         "--split", choices=["development", "evaluation"], default="development"
@@ -77,9 +83,18 @@ def main():
         print(summary["interpretation"])
         return 0
 
-    if not os.getenv("OPENAI_API_KEY"):
-        parser.error("Set OPENAI_API_KEY in .env before an OpenAI live run.")
-    from openai import OpenAI
+    if args.provider == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        model = args.model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        if not api_key:
+            parser.error("Set GEMINI_API_KEY in .env to use the Gemini free tier.")
+        client = OpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
+    else:
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        model = args.model or os.getenv("OPENAI_MODEL", "gpt-6-luna")
+        if not api_key:
+            parser.error("Set OPENAI_API_KEY in .env before an OpenAI API run.")
+        client = OpenAI(api_key=api_key)
 
     cases = [
         case for case in load_dataset()
@@ -87,15 +102,18 @@ def main():
     ][:max(1, min(args.limit, 12))]
     results = run_cases(
         cases,
-        OpenAI(),
-        os.getenv("OPENAI_MODEL", "gpt-6-luna"),
+        client,
+        model,
         args.strategy,
         args.allow_writes,
+        provider=args.provider,
     )
+    successes = sum(item["metrics"]["task_success"] for item in results)
     print(
-        f"Completed {len(results)} runs; successes: "
-        f"{sum(item['metrics']['task_success'] for item in results)}"
+        f"Completed {len(results)} {args.provider} runs; "
+        f"task-success grades: {successes}"
     )
+    print("Check the local SQLite history and execution traces in the dashboard.")
     return 0
 
 
