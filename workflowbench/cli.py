@@ -165,10 +165,16 @@ def main():
         provider=args.provider,
     )
     successes = sum(item["metrics"]["task_success"] for item in results)
+    completed = sum(item["run"]["status"] == "completed" for item in results)
+    errors = [item for item in results if item["run"]["status"] != "completed"]
     print(
-        f"Completed {len(results)} {args.provider} runs; "
+        f"Finished {len(results)} {args.provider} runs; "
+        f"model responses completed: {completed}; run errors: {len(errors)}; "
         f"task-success grades: {successes}"
     )
+    for item in errors:
+        run = item["run"]
+        print(f"  {run['case_id']}: {run['status']} — {run.get('error') or 'No final answer.'}")
     print("Check the local SQLite history and execution traces in the dashboard.")
     return 0
 
