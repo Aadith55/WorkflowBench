@@ -87,3 +87,42 @@ def test_redundant_repeated_tool_calls_reduce_tool_precision():
     assert scores["tool_precision"] == 0.6667
     assert scores["tool_recall"] == 1.0
     assert scores["tool_f1"] == 0.8
+
+def test_unrelated_source_limitation_does_not_trigger_abstention():
+    case = {
+        "id": "K-expense",
+        "agent_type": "knowledge",
+        "expected": {
+            "required_doc_ids": ["DOC-004"],
+            "required_terms": ["10 calendar days", "itemised receipt"],
+            "must_abstain": False,
+        },
+    }
+    run = AgentRun(
+        "K-expense",
+        "knowledge",
+        "baseline",
+        "completed",
+        (
+            "Employees should submit claims within 10 calendar days. "
+            "An itemised receipt is required. [DOC-004] "
+            "The guide does not specify a monetary penalty for late submissions."
+        ),
+        [
+            TraceEvent(1, "tool_call", "search", "search_documents"),
+            TraceEvent(
+                2, "tool_result", "found", "search_documents",
+                result={"results": [{"id": "DOC-004"}]},
+            ),
+            TraceEvent(3, "tool_call", "get", "get_document"),
+            TraceEvent(4, "tool_result", "read", "get_document",
+                       result={"id": "DOC-004"}),
+        ],
+    )
+
+    metrics = evaluate_run(case, run, Sandbox())
+
+    assert metrics["required_term_coverage"] == 1.0
+    assert metrics["abstained"] == 0
+    assert metrics["abstention_correct"] == 1
+    assert metrics["task_success"] == 1
