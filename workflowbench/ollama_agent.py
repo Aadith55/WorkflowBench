@@ -336,33 +336,9 @@ def run_ollama_agent(
                     raise ValueError(f"Tool '{name}' arguments must be a JSON object.")
 
                 call_started = time.perf_counter()
-                if agent_type == "knowledge" and name == "get_document":
-                    available_ids = _search_result_document_ids(trace)
-                    requested_id = arguments.get("document_id")
-                    if requested_id not in available_ids:
-                        result = {
-                            "ok": False,
-                            "error": (
-                                "get_document requires an exact document ID returned by "
-                                "search_documents in this run."
-                            ),
-                            "available_document_ids": available_ids,
-                            "instruction": (
-                                "Copy one of the available_document_ids exactly. Do not "
-                                "guess, assume a default ID, or reuse an ID from another task."
-                                if available_ids
-                                else "Call search_documents first; no document ID is available yet."
-                            ),
-                        }
-                        event_type = "tool_error"
-                    else:
-                        result, event_type = sandbox.call(
-                            name, arguments, agent_type, allow_writes=allow_writes
-                        )
-                else:
-                    result, event_type = sandbox.call(
-                        name, arguments, agent_type, allow_writes=allow_writes
-                    )
+                result, event_type = sandbox.call(
+                    name, arguments, agent_type, allow_writes=allow_writes
+                )
                 duration_ms = (time.perf_counter() - call_started) * 1000
                 trace.append(TraceEvent(
                     index=len(trace) + 1,
