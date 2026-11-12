@@ -50,7 +50,11 @@ def _knowledge_metrics(case: dict[str,Any], run: AgentRun) -> dict[str,Any]:
     citations = sum(x.lower() in output for x in required)/len(required) if required else 1.0
     must_abstain = bool(exp.get("must_abstain",False))
     phrases = ("not specified","not stated","not provided","does not specify","does not state","cannot determine","cannot verify")
-    abstained = any(p in output for p in phrases)
+    abstention_signal = any(p in output for p in phrases)
+    # Retrieved source text may mention an unrelated fact that is not specified.
+    # Do not misclassify an otherwise complete answer as an abstention merely
+    # because that unrelated limitation sentence appears in the source.
+    abstained = abstention_signal and (must_abstain or term_score < 1)
     abstention_ok = abstained == must_abstain
     tools = _tool_scores(["search_documents","get_document"],_tool_names(run))
     success = (run.status == "completed" and term_score == 1 and retrieval == 1
