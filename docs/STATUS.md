@@ -49,7 +49,8 @@
 ## Not yet verified
 
 - The user successfully launched Ollama and Streamlit locally. A first Qwen3:4B Knowledge run completed but answered from a search snippet without calling `get_document`; a retrieval gate has now been added and requires a user-side rerun.
-- No successful live Gemini run has yet been confirmed. No completed Qwen3 result has yet passed the real-model Knowledge grader.
+- One successful live Qwen3:4B / Ollama baseline run has now passed Knowledge development case K01 with task_success=1. This is a single-case result, not evidence of general model performance or a baseline-versus-verified improvement.
+- No successful live Gemini run has yet been confirmed.
 - Streamlit has been manually launched in the user's environment.
 - No model-performance improvement, cost saving or market opportunity has been measured.
 - The benchmark is a small synthetic pilot and is not representative of production traffic.
